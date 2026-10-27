@@ -1318,6 +1318,50 @@ class ChainTest(unittest.TestCase):
         self.assertEqual(job.status, "done", f"任务状态 {job.status}，错误 {job.error}")
         self.assertEqual(job.snapshot()["progress"], 100)
 
+    def test_74_web_post_branches(self):
+        """web 的 POST 内联分支：规则版本 / 新建工程 / 选工程 / 撤销 / 回退到指定步。"""
+        from aepcb import history, web
+        pid, v0 = _new_project(self.db, "post")
+        sid, _ = board.import_step(self.db, pid, step.make_fixture_step(60, 40, 1.2), step)
+        imp = board.import_board(self.db, pid, sid, t19a.t19a())
+        self.db.set_setting("ui.current_project", pid)
+        self.db.commit()
+
+        def post(path, body):
+            h = web.Handler.__new__(web.Handler)
+            h.db = self.db
+            h.path = "/api/" + path
+            h._body = lambda: body
+            sent = {}
+
+            def fake_json(obj, code=200):
+                sent.update(obj)
+                return obj
+
+            h._json = fake_json
+            h.do_POST()
+            return sent
+
+        out = post("rules", {"changes": ["R2.min_spacing_mm=0.55"], "label": "v-test"})
+        self.assertTrue(out.get("ok"))
+        self.assertIn("规则版本", out.get("message", ""))
+
+        out = post("new-project", {"name": "第二工程", "w": 50, "h": 30})
+        self.assertTrue(out.get("ok"))
+        self.assertIn("已新建工程", out.get("message", ""))
+
+        out = post("select", {"project_id": pid})
+        self.assertIn("已切换工程", out.get("message", ""))
+
+        rid = self.db.scalar("SELECT id FROM route WHERE circuit_id=? LIMIT 1", (imp.circuit_id,))
+        history.change_width(self.db, pid, imp.circuit_id, rid, 0.7)
+        out = post("undo", {})
+        self.assertTrue(out.get("ok"))
+        out = post("redo", {})
+        self.assertTrue(out.get("ok"))
+        out = post("undo-to", {"seq": 0})
+        self.assertTrue(out.get("ok"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
