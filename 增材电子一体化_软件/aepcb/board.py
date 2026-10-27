@@ -135,10 +135,17 @@ def import_board(db: DB, project_id: str, structure_id: str, spec: dict) -> Impo
                from_layer=int(v.get("from_layer", 0)),
                to_layer=int(v.get("to_layer", 1)), created_at=now())
 
+    outline = spec.get("outline") or []
+    poly = outline if len(outline) >= 3 else [[0, 0], [w, 0], [w, h], [0, h]]
+    if len(poly) >= 3:
+        area = abs(sum(poly[i][0] * poly[(i + 1) % len(poly)][1]
+                       - poly[(i + 1) % len(poly)][0] * poly[i][1]
+                       for i in range(len(poly)))) / 2
+    else:
+        area = w * h
     oid = db.ins("board_outline", structure_id=structure_id, kind="auto",
-                 geometry_blob_hash=db.put_blob(json.dumps(
-                     [[0, 0], [w, 0], [w, h], [0, h]]).encode(), "other"),
-                 area_mm2=w * h, is_valid=1, created_at=now())
+                 geometry_blob_hash=db.put_blob(json.dumps(poly).encode(), "other"),
+                 area_mm2=round(area or w * h, 3), is_valid=1, created_at=now())
 
     return ImportResult(cid, structure_id, oid, comp_ids, pad_ids, net_ids, route_ids,
                         spec.get("hash", ""), {"components": len(comps), "pads": len(pads),

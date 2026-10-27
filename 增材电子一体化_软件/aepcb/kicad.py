@@ -312,10 +312,56 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
                      "drill": _floats(drill, 1)[0] if drill else 0.3,
                      "from_layer": from_layer, "to_layer": to_layer})
 
+    # 板框：Edge.Cuts 上的直线/弧/矩形/圆。异形板框不能靠焊盘外接矩形推。
+    outline: list[list[float]] = []
+    outline_kinds: set[str] = set()
+    for gk in ("gr_line", "gr_rect", "gr_circle", "gr_arc", "gr_poly"):
+        for g in _items(root, gk):
+            lay = _first(g, "layer")
+            if not (lay and len(lay) > 1 and lay[1] == "Edge.Cuts"):
+                continue
+            outline_kinds.add(gk)
+            if gk == "gr_line":
+                s2, e2 = _first(g, "start"), _first(g, "end")
+                if s2 and e2:
+                    outline.append([round(v, 3) for v in _floats(s2)])
+                    outline.append([round(v, 3) for v in _floats(e2)])
+            elif gk == "gr_rect":
+                s2, e2 = _first(g, "start"), _first(g, "end")
+                if s2 and e2:
+                    x0, y0 = _floats(s2)
+                    x1, y1 = _floats(e2)
+                    outline += [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+            elif gk == "gr_circle":
+                c2, e2 = _first(g, "center"), _first(g, "end")
+                if c2 and e2:
+                    cx, cy = _floats(c2)
+                    ex, ey = _floats(e2)
+                    r = math.hypot(ex - cx, ey - cy)
+                    outline += [[cx - r, cy - r], [cx + r, cy - r],
+                                [cx + r, cy + r], [cx - r, cy + r]]
+            elif gk == "gr_arc":
+                s2, m2, e2 = _first(g, "start"), _first(g, "mid"), _first(g, "end")
+                if s2 and m2 and e2:
+                    for px2, py2 in _arc_points(_floats(s2), _floats(m2), _floats(e2), steps=8):
+                        outline.append([round(px2, 3), round(py2, 3)])
+            elif gk == "gr_poly":
+                pts_node = _first(g, "pts")
+                for xy in (_items(pts_node, "xy") if pts_node else []):
+                    outline.append([round(v, 3) for v in _floats(xy)])
+
     all_x = [p["x"] for p in pads] or [0.0]
     all_y = [p["y"] for p in pads] or [0.0]
     w = board_w or (max(all_x) + 5)
     h = board_h or (max(all_y) + 5)
+    if outline and not board_w:
+        ox = [p[0] for p in outline]
+        oy = [p[1] for p in outline]
+        ow, oh = max(ox) - min(ox), max(oy) - min(oy)
+        if ow > 1e-6 and oh > 1e-6:                      # 轮廓比焊盘外接更可信
+            w, h = ow, oh
+    if outline and len(outline) < 3:
+        warnings.append({"outline": "too_few_points", "points": len(outline)})
     net_names = sorted({p["net"] for p in pads} | {r["net"] for r in routes})
     return {
         "board": {"name": "kicad-import", "w": round(w, 3), "h": round(h, 3),
@@ -326,6 +372,8 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
         "routes": routes,
         "vias": [v for v in vias if v["net"]],
         "zones": zones,
+        "outline": outline,
+        "outline_kinds": sorted(outline_kinds),
         "keepouts": [],
         "rotation_warnings": warnings,
         "pad_warnings": pad_warnings,

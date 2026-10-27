@@ -1155,6 +1155,27 @@ class ChainTest(unittest.TestCase):
         self.assertTrue(any(w.get("shape") == "custom" for w in spec["pad_warnings"]),
                         "变形焊盘必须告警，不能静默当矩形")
 
+    def test_67_board_outline(self):
+        """异形板框：Edge.Cuts 决定板尺寸与面积，不能靠焊盘外接推。"""
+        from aepcb import kicad
+        text = '''(kicad_pcb (version 20240108)
+          (net 0 "") (net 2 "SIG")
+          (gr_rect (start 0 0) (end 40 30) (layer "Edge.Cuts"))
+          (footprint "R" (layer "F.Cu") (at 5 5)
+            (fp_text reference "R1" (at 0 0))
+            (pad "1" smd rect (at 0 0) (size 1 1) (layers "F.Cu") (net 2 "SIG")))
+        '''
+        spec = kicad.parse(text)
+        self.assertEqual(len(spec["outline"]), 4, "Edge.Cuts 应被解析")
+        self.assertEqual(spec["board"]["w"], 40.0, "板宽应来自轮廓而非焊盘")
+        self.assertEqual(spec["board"]["h"], 30.0)
+        pid, v0 = _new_project(self.db, "outline")
+        sid, _ = board.import_step(self.db, pid, step.make_fixture_step(60, 40, 1.2), step)
+        imp = board.import_board(self.db, pid, sid, spec)
+        row = self.db.one("SELECT area_mm2 FROM board_outline WHERE id=?", (imp.outline_id,))
+        self.assertAlmostEqual(float(row["area_mm2"]), 1200.0, places=2,
+                               msg="面积应为轮廓面积，不是外接矩形估算")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
