@@ -197,7 +197,8 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
                     pts_node = _first(gp, "pts")
                     for xy in (_items(pts_node, "xy") if pts_node else []):
                         qx, qy = _floats(xy)
-                        polygon.append([round(ax + qx, 4), round(ay + qy, 4)])
+                        polygon.append([round(ax + qx * cos_a - qy * sin_a, 4),
+                                        round(ay + qx * sin_a + qy * cos_a, 4)])
                 if polygon:
                     xs = [q[0] for q in polygon]
                     ys = [q[1] for q in polygon]
@@ -266,6 +267,7 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
 
     # 铺铜：整片多边形铜箔，异网重叠即短路
     zones: list[dict] = []
+    zone_keepouts: list[dict] = []
     for z in _items(root, "zone"):
         net = _first(z, "net")
         net_name = None
@@ -284,7 +286,11 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
             for xy in _items(pts_node, "xy"):
                 px, py = _floats(xy)
                 pts.append([round(px, 3), round(py, 3)])
-        if len(pts) >= 3 and net_name:
+        if len(pts) >= 3 and _first(z, "keepout") is not None:
+            # KiCad 的 zone 可带 keepout 属性：那是禁止铺铜区，不是铜皮
+            zone_keepouts.append({"kind": "polygon", "points": pts, "layer": layer_no,
+                                  "reason": "KiCad zone keepout"})
+        elif len(pts) >= 3 and net_name:
             zones.append({"net": net_name, "layer": layer_no, "priority": priority,
                           "filled": 1 if _first(z, "filled_polygon") else 0,
                           "points": pts})
@@ -374,7 +380,7 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
         "zones": zones,
         "outline": outline,
         "outline_kinds": sorted(outline_kinds),
-        "keepouts": [],
+        "keepouts": zone_keepouts,
         "rotation_warnings": warnings,
         "pad_warnings": pad_warnings,
     }

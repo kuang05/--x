@@ -1176,6 +1176,38 @@ class ChainTest(unittest.TestCase):
         self.assertAlmostEqual(float(row["area_mm2"]), 1200.0, places=2,
                                msg="面积应为轮廓面积，不是外接矩形估算")
 
+    def test_68_zone_keepout_and_pad_rotation(self):
+        """zone 的 keepout 不是铜皮；custom 焊盘多边形要跟着封装旋转。"""
+        from aepcb import kicad
+        text = '''(kicad_pcb (version 20240108)
+          (net 0 "") (net 1 "GND") (net 2 "SIG")
+          (footprint "R" (layer "F.Cu") (at 10 10 90)
+            (fp_text reference "R1" (at 0 0))
+            (pad "1" smd custom (at 2 0) (size 1 1) (layers "F.Cu") (net 2 "SIG")
+              (primitives (gr_poly (pts (xy -0.5 -0.5) (xy 0.5 -0.5)
+                (xy 0.5 0.5) (xy -0.5 0.5))))))
+          (zone (net 1) (layer "F.Cu")
+            (polygon (pts (xy 0 0) (xy 10 0) (xy 10 10) (xy 0 10)))
+            (keepout (tracks not_allowed) (vias not_allowed)))
+          (zone (net 1) (layer "F.Cu") (priority 1)
+            (polygon (pts (xy 20 20) (xy 30 20) (xy 30 30) (xy 20 30)))))'''
+        spec = kicad.parse(text)
+        self.assertEqual(len(spec["zones"]), 1, "只有其一是铜皮")
+        self.assertEqual(len(spec["keepouts"]), 1, "keepout 应归禁布区")
+        self.assertEqual(spec["keepouts"][0]["kind"], "polygon")
+        # 封装 90° 旋转：pad 局部点 (-0.5,-0.5) 应转到 (0.5,-0.5) 方向
+        custom = [p for p in spec["pads"] if p["shape"] == "other"][0]
+        self.assertEqual(len(custom["polygon"]), 4)
+        xs = [q[0] for q in custom["polygon"]]
+        ys = [q[1] for q in custom["polygon"]]
+        self.assertAlmostEqual(max(ys) - min(ys), 1.0, places=3)
+        self.assertAlmostEqual(max(xs) - min(xs), 1.0, places=3)
+        # 旋转 90° 后中心仍在 (10,12)：验证真的转了而不是只平移
+        cx = sum(xs) / 4
+        cy = sum(ys) / 4
+        self.assertAlmostEqual(cx, 10.0, places=2)
+        self.assertAlmostEqual(cy, 12.0, places=2)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
