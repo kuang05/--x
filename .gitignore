@@ -1,0 +1,34 @@
+# 生成物：可由命令重新产出，不入库
+增材电子一体化_软件/workspace/
+*.db
+*.db-wal
+*.db-shm
+*.aepkg
+*.part
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# 工具与会话产物，不属于源码
+tool-outputs/
+uploads/
+项目根/
+.codar/
+.codar-verification/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# 本地环境
+.env

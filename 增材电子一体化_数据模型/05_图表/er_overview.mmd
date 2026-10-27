@@ -1,0 +1,297 @@
+erDiagram
+  %% 关系总览（不含字段）
+
+  project {
+    text id PK
+  }
+  version {
+    text id PK
+  }
+  version_item {
+    text id PK
+  }
+  edit_session {
+    text id PK
+  }
+  operation {
+    text id PK
+  }
+  snapshot {
+    text id PK
+  }
+  blob {
+    text id PK
+  }
+  blob_gc_log {
+    text id PK
+  }
+  migration_log {
+    text id PK
+  }
+  external_file {
+    text id PK
+  }
+  app_setting {
+    text id PK
+  }
+  structure {
+    text id PK
+  }
+  board_outline {
+    text id PK
+  }
+  feature {
+    text id PK
+  }
+  bool_candidate {
+    text id PK
+  }
+  diagnostic {
+    text id PK
+  }
+  circuit {
+    text id PK
+  }
+  net_class {
+    text id PK
+  }
+  component {
+    text id PK
+  }
+  net {
+    text id PK
+  }
+  pad {
+    text id PK
+  }
+  route {
+    text id PK
+  }
+  jumper {
+    text id PK
+  }
+  keepout {
+    text id PK
+  }
+  via {
+    text id PK
+  }
+  layout_candidate {
+    text id PK
+  }
+  connectivity_check {
+    text id PK
+  }
+  mrc_rule_version {
+    text id PK
+  }
+  mrc_rule_threshold {
+    text id PK
+  }
+  tool_geometry {
+    text id PK
+  }
+  mrc_run {
+    text id PK
+  }
+  mrc_issue {
+    text id PK
+  }
+  material {
+    text id PK
+  }
+  material_batch {
+    text id PK
+  }
+  process_profile {
+    text id PK
+  }
+  slice_set {
+    text id PK
+  }
+  physical_layer {
+    text id PK
+  }
+  deposit_pass {
+    text id PK
+  }
+  slice_path {
+    text id PK
+  }
+  thermal_step {
+    text id PK
+  }
+  gcode_export {
+    text id PK
+  }
+  device {
+    text id PK
+  }
+  device_calibration {
+    text id PK
+  }
+  print_job {
+    text id PK
+  }
+  print_event {
+    text id PK
+  }
+  print_interruption {
+    text id PK
+  }
+  fault_injection {
+    text id PK
+  }
+  defect {
+    text id PK
+  }
+  attribution {
+    text id PK
+  }
+  plan {
+    text id PK
+  }
+  plan_step {
+    text id PK
+  }
+  tool_call {
+    text id PK
+  }
+  tool_registry {
+    text id PK
+  }
+  diff_card {
+    text id PK
+  }
+  replay_run {
+    text id PK
+  }
+  dictionary_entry {
+    text id PK
+  }
+  cloud_call {
+    text id PK
+  }
+  accept_result {
+    text id PK
+  }
+  package_manifest {
+    text id PK
+  }
+
+  version ||--o{ project : "current_version_id"
+  project ||--o{ version : "project_id"
+  version ||--o{ version : "parent_version_id"
+  mrc_rule_version ||--o{ version : "rule_version_id"
+  version ||--o{ version_item : "version_id"
+  project ||--o{ edit_session : "project_id"
+  version ||--o{ edit_session : "start_version_id"
+  version ||--o{ edit_session : "end_version_id"
+  edit_session ||--o{ operation : "session_id"
+  blob ||--o{ operation : "inverse_blob_hash"
+  operation ||--o{ operation : "undo_of_op_id"
+  version ||--o{ operation : "version_id"
+  project ||--o{ snapshot : "project_id"
+  edit_session ||--o{ snapshot : "session_id"
+  version ||--o{ snapshot : "version_id"
+  blob ||--o{ snapshot : "blob_hash"
+  project ||--o{ migration_log : "project_id"
+  blob ||--o{ migration_log : "backup_blob_hash"
+  project ||--o{ external_file : "project_id"
+  project ||--o{ structure : "project_id"
+  external_file ||--o{ structure : "source_file_id"
+  blob ||--o{ structure : "mesh_blob_hash"
+  structure ||--o{ board_outline : "structure_id"
+  blob ||--o{ board_outline : "geometry_blob_hash"
+  structure ||--o{ feature : "structure_id"
+  blob ||--o{ feature : "preview_blob_hash"
+  structure ||--o{ bool_candidate : "structure_id"
+  blob ||--o{ bool_candidate : "preview_blob_hash"
+  project ||--o{ diagnostic : "project_id"
+  project ||--o{ circuit : "project_id"
+  external_file ||--o{ circuit : "board_file_id"
+  external_file ||--o{ circuit : "netlist_file_id"
+  external_file ||--o{ circuit : "coord_file_id"
+  circuit ||--o{ net_class : "circuit_id"
+  circuit ||--o{ component : "circuit_id"
+  net_class ||--o{ component : "net_class_id"
+  circuit ||--o{ net : "circuit_id"
+  net_class ||--o{ net : "net_class_id"
+  component ||--o{ pad : "component_id"
+  net ||--o{ pad : "net_id"
+  circuit ||--o{ route : "circuit_id"
+  net ||--o{ route : "net_id"
+  blob ||--o{ route : "geom_blob_hash"
+  circuit ||--o{ jumper : "circuit_id"
+  net ||--o{ jumper : "net_id"
+  pad ||--o{ jumper : "pad_a_id"
+  pad ||--o{ jumper : "pad_b_id"
+  circuit ||--o{ keepout : "circuit_id"
+  blob ||--o{ keepout : "geometry_blob_hash"
+  circuit ||--o{ via : "circuit_id"
+  net ||--o{ via : "net_id"
+  circuit ||--o{ layout_candidate : "circuit_id"
+  version ||--o{ layout_candidate : "applied_version_id"
+  project ||--o{ connectivity_check : "project_id"
+  version ||--o{ connectivity_check : "version_id"
+  slice_set ||--o{ connectivity_check : "slice_set_id"
+  mrc_rule_version ||--o{ mrc_rule_version : "supersedes_id"
+  mrc_rule_version ||--o{ mrc_rule_threshold : "rule_version_id"
+  project ||--o{ mrc_run : "project_id"
+  version ||--o{ mrc_run : "version_id"
+  mrc_rule_version ||--o{ mrc_run : "rule_version_id"
+  tool_geometry ||--o{ mrc_run : "tool_geometry_id"
+  mrc_run ||--o{ mrc_issue : "run_id"
+  version ||--o{ mrc_issue : "version_id"
+  mrc_rule_version ||--o{ mrc_issue : "rule_version_id"
+  material ||--o{ material_batch : "material_id"
+  project ||--o{ process_profile : "project_id"
+  project ||--o{ slice_set : "project_id"
+  version ||--o{ slice_set : "design_version_id"
+  process_profile ||--o{ slice_set : "process_profile_id"
+  mrc_rule_version ||--o{ slice_set : "rule_version_id"
+  tool_geometry ||--o{ slice_set : "tool_geometry_id"
+  slice_set ||--o{ physical_layer : "slice_set_id"
+  material ||--o{ physical_layer : "material_id"
+  slice_set ||--o{ deposit_pass : "slice_set_id"
+  physical_layer ||--o{ deposit_pass : "physical_layer_id"
+  material ||--o{ deposit_pass : "material_id"
+  material_batch ||--o{ deposit_pass : "material_batch_id"
+  deposit_pass ||--o{ slice_path : "deposit_pass_id"
+  blob ||--o{ slice_path : "geom_blob_hash"
+  slice_set ||--o{ thermal_step : "slice_set_id"
+  slice_set ||--o{ gcode_export : "slice_set_id"
+  blob ||--o{ gcode_export : "blob_hash"
+  project ||--o{ device : "project_id"
+  device ||--o{ device_calibration : "device_id"
+  project ||--o{ print_job : "project_id"
+  slice_set ||--o{ print_job : "slice_set_id"
+  gcode_export ||--o{ print_job : "gcode_export_id"
+  device ||--o{ print_job : "device_id"
+  print_job ||--o{ print_event : "print_job_id"
+  print_job ||--o{ print_interruption : "print_job_id"
+  print_job ||--o{ fault_injection : "print_job_id"
+  print_job ||--o{ defect : "print_job_id"
+  slice_set ||--o{ defect : "slice_set_id"
+  version ||--o{ defect : "design_version_id"
+  deposit_pass ||--o{ defect : "deposit_pass_id"
+  blob ||--o{ defect : "evidence_blob_hash"
+  defect ||--o{ attribution : "defect_id"
+  version ||--o{ attribution : "design_version_id"
+  project ||--o{ plan : "project_id"
+  version ||--o{ plan : "base_version_id"
+  plan ||--o{ plan_step : "plan_id"
+  operation ||--o{ plan_step : "applied_op_id"
+  plan_step ||--o{ tool_call : "step_id"
+  plan ||--o{ diff_card : "plan_id"
+  version ||--o{ diff_card : "before_version_id"
+  version ||--o{ diff_card : "after_version_id"
+  plan_step ||--o{ diff_card : "applied_step_id"
+  plan ||--o{ replay_run : "plan_id"
+  version ||--o{ replay_run : "start_version_id"
+  mrc_rule_version ||--o{ replay_run : "rule_version_id"
+  tool_geometry ||--o{ replay_run : "tool_geometry_id"
+  process_profile ||--o{ replay_run : "process_profile_id"
+  project ||--o{ cloud_call : "project_id"
+  project ||--o{ accept_result : "project_id"
+  project ||--o{ package_manifest : "project_id"

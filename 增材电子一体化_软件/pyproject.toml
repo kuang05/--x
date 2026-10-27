@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aepcb"
+version = "1.5.0"
+description = "增材电子一体化软件：结构 / 走线 / 切片 / 打印四域链路（含验收运行器）"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "opencv-python-headless>=4.8",
+    "scikit-learn>=1.3",
+    "pillow>=10.0",
+]
+
+[project.optional-dependencies]
+serial = ["pyserial>=3.5"]
+pg = ["pgserver>=0.1"]
+
+[project.scripts]
+aepcb = "aepcb.cli:main"
+
+[tool.setuptools]
+packages = ["aepcb", "fixtures"]
+
+[tool.setuptools.package-data]
+aepcb = ["../schema.sql"]

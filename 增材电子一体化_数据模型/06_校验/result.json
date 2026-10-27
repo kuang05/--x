@@ -1,0 +1,293 @@
+{
+  "ok": 41,
+  "failed": 0,
+  "results": [
+    {
+      "id": "S-01",
+      "name": "表数量 = 59",
+      "ok": true,
+      "detail": "实际 59 张",
+      "kind": "结构"
+    },
+    {
+      "id": "S-02",
+      "name": "索引数量 ≥ 100",
+      "ok": true,
+      "detail": "实际 110 个",
+      "kind": "结构"
+    },
+    {
+      "id": "S-03",
+      "name": "触发器数量 = 21",
+      "ok": true,
+      "detail": "实际 21 个",
+      "kind": "结构"
+    },
+    {
+      "id": "S-04",
+      "name": "每张表都有主键",
+      "ok": true,
+      "detail": "全部有主键",
+      "kind": "结构"
+    },
+    {
+      "id": "S-05",
+      "name": "外键一致性（含全链样例）",
+      "ok": true,
+      "detail": "foreign_key_check 为空",
+      "kind": "结构"
+    },
+    {
+      "id": "S-06",
+      "name": "数据库完整性",
+      "ok": true,
+      "detail": "ok",
+      "kind": "结构"
+    },
+    {
+      "id": "S-07",
+      "name": "所有表名与 SRS 术语不冲突（无 SQL 关键字表名）",
+      "ok": true,
+      "detail": "session 改名 edit_session；order/index/key/value 均未使用",
+      "kind": "结构"
+    },
+    {
+      "id": "T-01",
+      "name": "SRS 需求条目全覆盖（105 条）",
+      "ok": true,
+      "detail": "全部有落点",
+      "kind": "追溯"
+    },
+    {
+      "id": "T-02",
+      "name": "20 条验收任务均可落库",
+      "ok": true,
+      "detail": "T01–T20 均可写入",
+      "kind": "追溯"
+    },
+    {
+      "id": "T-03",
+      "name": "每张表都标注了依据需求",
+      "ok": true,
+      "detail": "59 张表全部有 req 标注",
+      "kind": "追溯"
+    },
+    {
+      "id": "V-01",
+      "name": "撤销只写操作日志，不产生版本、不改 version_no",
+      "ok": true,
+      "detail": "版本数 2→2，version_no 仍为 1",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-02",
+      "name": "版本行不可修改（DAT-002）",
+      "ok": true,
+      "detail": "按预期拒绝：DAT-002: version 表不可篡改（禁止 UPDATE）",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-03",
+      "name": "版本行不可删除（DAT-002）",
+      "ok": true,
+      "detail": "按预期拒绝：DAT-002: version 表不可删除（历史只读）",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-04",
+      "name": "同一电路内网络名唯一（CIR-003）",
+      "ok": true,
+      "detail": "按预期拒绝：UNIQUE constraint failed: net.circuit_id, net.name",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-05",
+      "name": "评分只追加，不可覆盖旧分数（MRC-011）",
+      "ok": true,
+      "detail": "按预期拒绝：MRC-011: 评分结果只追加，旧分数不得被覆盖",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-06",
+      "name": "违规条目必须与所属运行的版本一致（MRC-008）",
+      "ok": true,
+      "detail": "按预期拒绝：MRC-008: 违规条目的 version/rule_version 必须与所属运行一致",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-07",
+      "name": "分数必须落在 0–100（MRC-008）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: total_score>=0 AND total_score<=100",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-08",
+      "name": "缺陷的设计版本必须与切片绑定版本一致（PRT-009）",
+      "ok": true,
+      "detail": "按预期拒绝：PRT-009: 缺陷的设计版本必须与所用切片绑定的版本一致",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-09",
+      "name": "设计推进后切片自动置 stale 并记录时间（SLC-010）",
+      "ok": true,
+      "detail": "status=stale, stale_since=2026-10-27T00:23:01.623Z",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-10",
+      "name": "道次序号在切片内唯一（SLC-002）",
+      "ok": true,
+      "detail": "按预期拒绝：UNIQUE constraint failed: deposit_pass.slice_set_id, deposit_pass.pass_index",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-11",
+      "name": "G-code 导出记录不可改写（SLC-008）",
+      "ok": true,
+      "detail": "按预期拒绝：SLC-008: 导出记录只追加，哈希不得被改写",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-12",
+      "name": "跳线两端不能是同一焊盘（CIR-007）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: pad_a_id <> pad_b_id",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-13",
+      "name": "层固化升温不超过 3 ℃/min（1.7）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: stage <> 'cure' OR ramp_c_per_min IS NULL OR ramp_c_per_min <= 3",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-14",
+      "name": "版本号在工程内唯一（PRJ-004）",
+      "ok": true,
+      "detail": "按预期拒绝：UNIQUE constraint failed: version.project_id, version.version_no",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-15",
+      "name": "走线必须指向存在的网络（外键）",
+      "ok": true,
+      "detail": "按预期拒绝：FOREIGN KEY constraint failed",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-16",
+      "name": "外部文件路径禁止穿越（NFR-005）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: path NOT LIKE '/%' AND path NOT LIKE '../%' AND path NOT LIKE '%/../%' AND path NOT L",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-17",
+      "name": "操作日志只追加（PRJ-005）",
+      "ok": true,
+      "detail": "按预期拒绝：PRJ-005: 操作日志只追加，不允许改写",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-18",
+      "name": "验收任务号必须形如 Tnn（7.1）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: task_no GLOB 'T[0-9][0-9]'",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-19",
+      "name": "哈希必须是 64 位十六进制（DAT-005）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: length(hash)=64",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-20",
+      "name": "幅面不得超过 400 mm（PRJ-001 可选配置上限）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: sheet_w_mm>0 AND sheet_w_mm<=400",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-21",
+      "name": "过期切片必须有 stale_since（SLC-010）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: status <> 'stale' OR stale_since IS NOT NULL",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-22",
+      "name": "缺陷状态受控（PRT-008）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: status IN ('pending','fixed','ignored')",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-23",
+      "name": "项目硬删除被拒（历史只读 / 外键）",
+      "ok": true,
+      "detail": "按预期拒绝：SLC-008: 导出记录不可删除（哈希是追溯证据）",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-24",
+      "name": "评分运行不可删除（否则级联删掉违规记录）",
+      "ok": true,
+      "detail": "按预期拒绝：MRC-011: 评分运行不可删除（会级联删掉违规记录）",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-25",
+      "name": "操作日志不可删除（PRJ-005）",
+      "ok": true,
+      "detail": "按预期拒绝：PRJ-005: 操作日志不可删除（撤销靠追加，不靠删行）",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-26",
+      "name": "审查 Agent 不得执行步骤（AGT-002 只读）",
+      "ok": true,
+      "detail": "按预期拒绝：AGT-002: 审查 Agent 只读，不得执行步骤",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-27",
+      "name": "旧版本切片不得置 ready（堵住 computing→ready 泄漏）",
+      "ok": true,
+      "detail": "SLC-010: 绑定版本已不是当前版本，不得置为 ready；请先回滚或重新切片",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-28",
+      "name": "跳层事件必须带层号与原因码（PRT-012）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: event_kind <> 'skip' OR (layer_no IS NOT NULL AND code <> '')",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-29",
+      "name": "合法文件名 rev..2/board.step 不被误伤（NFR-005）",
+      "ok": true,
+      "detail": "按预期成功",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-30",
+      "name": "绝对路径被拒（NFR-005）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: path NOT LIKE '/%' AND path NOT LIKE '../%' AND path NOT LIKE '%/../%' AND path NOT L",
+      "kind": "不变量"
+    },
+    {
+      "id": "V-31",
+      "name": "Windows 反斜杠穿越被拒（NFR-005）",
+      "ok": true,
+      "detail": "按预期拒绝：CHECK constraint failed: path NOT LIKE '/%' AND path NOT LIKE '../%' AND path NOT LIKE '%/../%' AND path NOT L",
+      "kind": "不变量"
+    }
+  ]
+}

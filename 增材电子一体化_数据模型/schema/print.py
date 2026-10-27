@@ -1,0 +1,238 @@
+"""print 域：设备与标定、打印作业、事件、暂停/续打、故障注入、缺陷与归因。"""
+from __future__ import annotations
+
+from .base import C, CREATED, ID, Index, T
+
+TABLES = [
+    # ------------------------------------------------------------------ device
+    T("device", "设备", "print",
+      "真机或虚拟打印机：连接方式、地址、状态与能力档案。",
+      ["PRT-001", "PRT-002", "5.3 设备接口"],
+      [
+          ID("设备 ID"),
+          C("project_id", "text", "所属工程（空=全局设备）", fk="project.id", on_delete="CASCADE"),
+          C("name", "text", "设备名", nn=True),
+          C("conn_kind", "text", "连接方式", nn=True, check="conn_kind IN ('serial','lan','virtual')"),
+          C("address", "text", "地址（串口/主机:端口）", default="''"),
+          C("status", "text", "连接与运行状态", nn=True, default="'offline'",
+            check="status IN ('offline','idle','precheck','homing','calibrating','printing','paused','fault','complete')",
+            note="与 5.3 的状态枚举对齐"),
+          C("last_connected_at", "time", "最近连接时间"),
+          C("profile_json", "json", "能力档案（幅面、轴数、喷头数、温度上限）"),
+          CREATED(),
+      ],
+      idx=[
+          Index(["project_id", "conn_kind"], note="按工程列设备"),
+          Index(["status"], note="在线设备过滤"),
+      ],
+      note="虚拟打印机是 device 的一种（conn_kind='virtual'），不是另一套模型。"),
+
+    # ------------------------------------------------------------------ device_calibration
+    T("device_calibration", "喷头标定记录", "print",
+      "A/B 喷头偏移与各自 Z 高、热态标定时间与结果；超差禁止开始打印。",
+      ["PRT-013", "1.7 双喷头对位", "PRT-002"],
+      [
+          ID("标定 ID"),
+          C("device_id", "text", "所属设备", nn=True, fk="device.id", on_delete="CASCADE"),
+          C("nozzle_a_dx_mm", "real", "A 喷头 X 偏移", nn=True, default="0"),
+          C("nozzle_a_dy_mm", "real", "A 喷头 Y 偏移", nn=True, default="0"),
+          C("nozzle_a_dz_mm", "real", "A 喷头 Z 偏移", nn=True, default="0"),
+          C("nozzle_b_dx_mm", "real", "B 喷头 X 偏移", nn=True, default="0"),
+          C("nozzle_b_dy_mm", "real", "B 喷头 Y 偏移", nn=True, default="0"),
+          C("nozzle_b_dz_mm", "real", "B 喷头 Z 偏移", nn=True, default="0"),
+          C("hot_state_temp_c", "real", "热态标定温度（℃）", nn=True, default="80", check="hot_state_temp_c BETWEEN 0 AND 300"),
+          C("tolerance_mm", "real", "允许偏差（默认 0.1）", nn=True, default="0.1", check="tolerance_mm>0"),
+          C("is_within_tolerance", "bool", "是否在允差内", nn=True, default="1"),
+          C("result_json", "json", "标定结果（实测点、残差）"),
+          C("measured_at", "time", "标定时间", nn=True),
+          C("operator", "text", "操作者", default="'local'"),
+      ],
+      idx=[Index(["device_id", "measured_at"], note="取最近一次有效标定（PRT-002 前置检查）")],
+      note="标定是事件而非几何属性：每次标定追加一行，打印前取最近一次 is_within_tolerance=1 的记录。"),
+
+    # ------------------------------------------------------------------ print_job
+    T("print_job", "打印作业", "print",
+      "一次打印：绑定切片与 G-code、设备、状态机与阶段；作业历史由此派生。",
+      ["PRT-002", "PRT-003", "PRT-010", "PRT-014", "T17", "T18"],
+      [
+          ID("作业 ID"),
+          C("project_id", "text", "所属工程", nn=True, fk="project.id", on_delete="CASCADE"),
+          C("slice_set_id", "text", "所用切片", nn=True, fk="slice_set.id", on_delete="RESTRICT"),
+          C("gcode_export_id", "text", "所用 G-code 导出", fk="gcode_export.id", on_delete="RESTRICT"),
+          C("device_id", "text", "执行设备", nn=True, fk="device.id", on_delete="RESTRICT"),
+          C("status", "text", "作业状态", nn=True, default="'created'",
+            check="status IN ('created','precheck_failed','ready','running','paused','interrupted','curing','cooling','completed','failed','aborted')"),
+          C("phase", "text", "当前阶段", nn=True, default="'idle'",
+            check="phase IN ('idle','printing','curing','cooling')",
+            note="与 status 正交：暂停要看是在打印中还是固化中（PRT-003/004）"),
+          C("gcode_content_hash", "hash", "开工校验用（规范化哈希）", nn=True),
+          C("layer_total", "int", "总层数", check="layer_total IS NULL OR layer_total>0"),
+          C("layer_current", "int", "当前层号", default="0", check="layer_current>=0"),
+          C("precheck_json", "json", "打印前检查逐项结果"),
+          C("result_json", "json", "结果摘要（耗时、告警、结论）"),
+          C("started_at", "time", "开始时间"),
+          C("ended_at", "time", "结束时间"),
+          C("duration_s", "int", "耗时（秒）", check="duration_s IS NULL OR duration_s>=0"),
+          CREATED(),
+      ],
+      idx=[
+          Index(["project_id", "started_at"], note="作业历史按工程/时间筛选（PRT-010）"),
+          Index(["slice_set_id"], note="按切片查作业"),
+          Index(["status"], note="在跑作业"),
+          Index(["gcode_content_hash"], note="哈希反查作业（SLC-008 批次反查）"),
+      ],
+      chk=[
+          ("ended_at IS NULL OR started_at IS NULL OR ended_at >= started_at", "结束不早于开始"),
+          ("status <> 'completed' OR ended_at IS NOT NULL", "完成的作业必须有结束时间"),
+      ],
+      note="status 与 phase 双字段：固化中暂停的语义与打印中暂停完全不同，不能塞进一个字段（PRT-004）。"),
+
+    # ------------------------------------------------------------------ print_event
+    T("print_event", "打印事件", "print",
+      "统一事件时间线：状态变更、前置检查逐项、故障、动作、参数调整。",
+      ["PRT-002", "PRT-005", "PRT-006", "PRT-011", "PRT-012", "T17", "T18"],
+      [
+          ID("事件 ID"),
+          C("print_job_id", "text", "所属作业", nn=True, fk="print_job.id", on_delete="CASCADE"),
+          C("seq", "int", "作业内序号（从 1 递增）", nn=True, check="seq>=1"),
+          C("event_kind", "text", "事件类型", nn=True,
+            check="event_kind IN ('status','precheck','fault','action','param','skip','note')",
+            note="skip = 跳层/跳段（PRT-012）"),
+          C("code", "text", "事件码/故障码", default="''",
+            note="故障：overheat/clog/broken_line/material_out/oven_underheat/alignment_drift"),
+          C("message", "text", "中文说明", nn=True),
+          C("detail_json", "json", "详情（温度、位置、处置动作）"),
+          C("layer_no", "int", "发生层号"),
+          C("pass_index", "int", "发生道次", check="pass_index IS NULL OR pass_index>=0"),
+          C("path_seq", "int", "发生路径段序号", check="path_seq IS NULL OR path_seq>=0"),
+          C("at", "time", "发生时间", nn=True),
+      ],
+      idx=[
+          Index(["print_job_id", "seq"], unique=True, note="时间线回放（PRT-006）"),
+          Index(["print_job_id", "event_kind"], note="只看故障/只看前置检查"),
+      ],
+      chk=[("event_kind <> 'skip' OR (layer_no IS NOT NULL AND code <> '')",
+            "跳层/跳段必须记录层号与原因码（PRT-012）")],
+      note="故障与缺陷分开：事件记录“发生了什么”，缺陷记录“打坏了什么”（PRT-005 vs PRT-008）。"),
+
+    # ------------------------------------------------------------------ print_interruption
+    T("print_interruption", "暂停与续打", "print",
+      "两类暂停（打印中/固化中）与断电续打：恢复点、温度、剩余保温时间、坐标可信度校验。",
+      ["PRT-003", "PRT-004", "PRT-014", "T17"],
+      [
+          ID("中断 ID"),
+          C("print_job_id", "text", "所属作业", nn=True, fk="print_job.id", on_delete="CASCADE"),
+          C("kind", "text", "中断类型", nn=True,
+            check="kind IN ('motion_pause','curing_pause','power_loss','fault_stop')",
+            note="motion_pause 打印中暂停；curing_pause 固化中暂停；power_loss 断电"),
+          C("at", "time", "发生时间", nn=True),
+          C("layer_no", "int", "停在哪一层"),
+          C("pass_index", "int", "停在哪一道次"),
+          C("path_seq", "int", "停在哪一段路径"),
+          C("temp_at_c", "real", "暂停时温度（℃）"),
+          C("elapsed_in_phase_s", "int", "本阶段已进行时长（秒）", check="elapsed_in_phase_s IS NULL OR elapsed_in_phase_s>=0"),
+          C("remaining_hold_s", "int", "剩余保温时长（秒）", check="remaining_hold_s IS NULL OR remaining_hold_s>=0"),
+          C("resume_decision", "text", "恢复策略", default="''",
+            check="resume_decision IN ('','resume','recalibrate_resume','recompute_hold','abort')",
+            note="固化中断必须 recompute_hold，禁止直接续时（PRT-004）"),
+          C("coord_check_json", "json", "坐标可信度校验结果（断电续打用）"),
+          C("note", "text", "说明", default="''"),
+      ],
+      idx=[Index(["print_job_id", "at"], note="按作业列中断记录")],
+      chk=[
+          ("kind <> 'curing_pause' OR temp_at_c IS NOT NULL", "固化中断必须记录温度"),
+          ("kind <> 'power_loss' OR coord_check_json IS NOT NULL", "断电续打必须记录坐标校验结果"),
+      ],
+      note="两种暂停的差别要落到列上：打印中恢复需重校坐标（coord_check_json），固化中恢复需重算剩余保温（remaining_hold_s）。"),
+
+    # ------------------------------------------------------------------ fault_injection
+    T("fault_injection", "故障注入", "print",
+      "六类可复现故障：类型、层、位置、随机种子；同参数重复运行缺陷位置一致。",
+      ["PRT-007", "PRT-008", "T18"],
+      [
+          ID("注入 ID"),
+          C("print_job_id", "text", "所属作业", nn=True, fk="print_job.id", on_delete="CASCADE"),
+          C("fault_kind", "text", "故障类型", nn=True,
+            check="fault_kind IN ('broken_line','clog','overheat','oven_underheat','alignment_drift','material_out')"),
+          C("layer_no", "int", "发生层", nn=True, check="layer_no>=0"),
+          C("x_mm", "real", "位置 X"),
+          C("y_mm", "real", "位置 Y"),
+          C("random_seed", "int", "随机种子", nn=True, note="可复现的关键（PRT-007）"),
+          C("params_json", "json", "附加参数（程度、持续时间）"),
+          C("applied_at", "time", "生效时间"),
+      ],
+      idx=[
+          Index(["print_job_id", "fault_kind"], note="按作业看注入"),
+          Index(["fault_kind", "layer_no", "random_seed"], note="复现同一注入"),
+      ],
+      note="六类故障：断线/堵头/超温/烘箱失温/对位漂移/断料；随机种子固定才能“同参数重复运行缺陷位置一致”。"),
+
+    # ------------------------------------------------------------------ defect
+    T("defect", "缺陷", "print",
+      "打印中发现的问题：类型、层、位置、严重度、证据与处理状态；三元绑定作业/切片/设计版本。",
+      ["PRT-008", "PRT-009", "T18"],
+      [
+          ID("缺陷 ID"),
+          C("print_job_id", "text", "所属作业", nn=True, fk="print_job.id", on_delete="CASCADE"),
+          C("slice_set_id", "text", "所属切片（冗余，便于定位）", nn=True, fk="slice_set.id", on_delete="RESTRICT"),
+          C("design_version_id", "text", "归因设计版本（冗余，固化）", nn=True, fk="version.id", on_delete="RESTRICT",
+            note="避免事后经三跳 join 推导导致归因漂移（冲突 C5）"),
+          C("deposit_pass_id", "text", "所属道次", fk="deposit_pass.id", on_delete="SET NULL"),
+          C("layer_no", "int", "层号", check="layer_no IS NULL OR layer_no>=0"),
+          C("x_mm", "real", "位置 X"),
+          C("y_mm", "real", "位置 Y"),
+          C("defect_kind", "text", "缺陷类型", nn=True,
+            check="defect_kind IN ('open','short','void','bulge','missed_pad','delamination','other')",
+            note="断路/短路/空洞/鼓包/漏焊盘/分层"),
+          C("severity", "text", "严重度", nn=True, default="'major'",
+            check="severity IN ('blocker','major','minor','info')"),
+          C("status", "text", "处理状态", nn=True, default="'pending'",
+            check="status IN ('pending','fixed','ignored')"),
+          C("evidence_blob_hash", "hash", "证据（图片/切片快照）", fk="blob.hash", on_delete="SET NULL"),
+          C("detected_at", "time", "发现时间", nn=True),
+          C("note", "text", "说明", default="''"),
+      ],
+      idx=[
+          Index(["print_job_id", "status"], note="缺陷列表按作业+状态（PRT-008）"),
+          Index(["print_job_id", "layer_no"], note="层定位"),
+          Index(["design_version_id"], note="按版本归因（PRT-009）"),
+          Index(["severity"], note="按严重度筛选"),
+      ],
+      trg=[
+          ("trg_defect_binding", """
+CREATE TRIGGER trg_defect_binding
+BEFORE INSERT ON defect
+FOR EACH ROW
+WHEN NEW.design_version_id <> (SELECT design_version_id FROM slice_set WHERE id = NEW.slice_set_id)
+BEGIN
+  SELECT RAISE(ABORT, 'PRT-009: 缺陷的设计版本必须与所用切片绑定的版本一致');
+END;"""),
+      ],
+      note="状态可变但每次变更写 print_event（kind='action'），保留轨迹；证据按内容寻址。"),
+
+    # ------------------------------------------------------------------ attribution
+    T("attribution", "缺陷归因", "print",
+      "归因结论与建议：原因分类、置信度、回滚/重切/调参建议；一个缺陷可多次复议。",
+      ["PRT-009", "SLC-010", "PRT-008", "T18"],
+      [
+          ID("归因 ID"),
+          C("defect_id", "text", "所属缺陷", nn=True, fk="defect.id", on_delete="CASCADE"),
+          C("cause_kind", "text", "原因分类", nn=True,
+            check="cause_kind IN ('design','process','material','machine')"),
+          C("confidence", "real", "置信度（0–1）", nn=True, default="0.5", check="confidence>=0 AND confidence<=1"),
+          C("design_version_id", "text", "归因到的设计版本", fk="version.id", on_delete="SET NULL"),
+          C("method", "text", "归因方法（规则/统计/人工）", default="'rule'",
+            check="method IN ('rule','model','manual','hybrid')"),
+          C("suggestion_kind", "text", "建议动作", nn=True, default="'none'",
+            check="suggestion_kind IN ('rollback','reslice','param_tune','none')"),
+          C("suggestion_json", "json", "建议详情（改哪个参数、回滚到哪版）"),
+          C("decided_by", "text", "决策者", nn=True, default="'local'"),
+          C("decided_at", "time", "决策时间", nn=True),
+          CREATED(),
+      ],
+      idx=[
+          Index(["defect_id"], note="一个缺陷的归因历史"),
+          Index(["design_version_id"], note="按版本汇总归因"),
+      ],
+      note="独立成表：归因会复议、会被推翻，塞进 defect 行会覆盖历史（PRT-009）。"),
+]
