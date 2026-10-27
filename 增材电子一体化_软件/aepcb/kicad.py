@@ -321,7 +321,7 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
     # 板框：Edge.Cuts 上的直线/弧/矩形/圆。异形板框不能靠焊盘外接矩形推。
     outline: list[list[float]] = []
     outline_kinds: set[str] = set()
-    for gk in ("gr_line", "gr_rect", "gr_circle", "gr_arc", "gr_poly"):
+    for gk in ("gr_line", "gr_rect", "gr_circle", "gr_arc", "gr_poly", "gr_curve"):
         for g in _items(root, gk):
             lay = _first(g, "layer")
             if not (lay and len(lay) > 1 and lay[1] == "Edge.Cuts"):
@@ -355,6 +355,23 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
                 pts_node = _first(g, "pts")
                 for xy in (_items(pts_node, "xy") if pts_node else []):
                     outline.append([round(v, 3) for v in _floats(xy)])
+            elif gk == "gr_curve":
+                # 三次贝塞尔（KiCad 的 gr_curve 通常 4 个控制点）：离散成折线
+                pts_node = _first(g, "pts")
+                ctrl = [[round(v, 3) for v in _floats(xy)]
+                        for xy in (_items(pts_node, "xy") if pts_node else [])]
+                if len(ctrl) >= 4:
+                    p0, p1, p2, p3 = ctrl[:4]
+                    for i in range(9):
+                        t = i / 8.0
+                        mt = 1.0 - t
+                        x = (mt ** 3 * p0[0] + 3 * mt * mt * t * p1[0]
+                             + 3 * mt * t * t * p2[0] + t ** 3 * p3[0])
+                        y = (mt ** 3 * p0[1] + 3 * mt * mt * t * p1[1]
+                             + 3 * mt * t * t * p2[1] + t ** 3 * p3[1])
+                        outline.append([round(x, 3), round(y, 3)])
+                elif ctrl:
+                    outline.extend(ctrl)
 
     all_x = [p["x"] for p in pads] or [0.0]
     all_y = [p["y"] for p in pads] or [0.0]

@@ -3,6 +3,18 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号从 v1.5.0 起按「可运行基线」推进，每个 tag 对应一次全量回归通过。
 
+## [v1.7.4] — 板框曲线与覆盖率工具
+
+### 新增
+- `kicad.py`：解析 `Edge.Cuts` 上的 `gr_curve`（三次贝塞尔），离散成 9 点折线；
+  此前只有直线/矩形/圆/弧/多边形。
+- `tools/coverage_lite.py`：用标准库 `sys.settrace` 统计 `aepcb/*.py` 行覆盖率，
+  不依赖第三方包（本机 pip 装 `coverage` 多次失败）；报告写 `workspace/coverage.md`。
+- `参赛材料/06_答辩PPT逐页要点.md`：15 页逐页要点（标题/要点/配图/口播）+ 排版建议。
+
+### 验证
+- 单测 70/70（新增 `test_70_gr_curve_outline`）。
+
 ## [v1.7.1] — 旧库自动补表
 
 ### 修复

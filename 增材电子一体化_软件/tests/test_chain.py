@@ -1229,6 +1229,22 @@ class ChainTest(unittest.TestCase):
         n = self.db.scalar("SELECT COUNT(*) FROM structure WHERE id=?", (sid,), 0)
         self.assertEqual(n, 1, "STL 应作为结构落库")
 
+    def test_70_gr_curve_outline(self):
+        """gr_curve（三次贝塞尔）应离散成折线并参与板框。"""
+        from aepcb import kicad
+        text = '''(kicad_pcb (version 20240108)
+          (net 0 "")
+          (gr_curve (pts (xy 0 0) (xy 10 20) (xy 30 20) (xy 40 0))
+            (layer "Edge.Cuts")))'''
+        spec = kicad.parse(text)
+        self.assertGreaterEqual(len(spec["outline"]), 9, "贝塞尔应离散成多点")
+        self.assertIn("gr_curve", spec["outline_kinds"])
+        xs = [p[0] for p in spec["outline"]]
+        self.assertAlmostEqual(min(xs), 0.0, places=2)
+        self.assertAlmostEqual(max(xs), 40.0, places=2)
+        mid = spec["outline"][4]
+        self.assertGreater(mid[1], 0.0, "曲线中点应拱起，不能退化成直线")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
