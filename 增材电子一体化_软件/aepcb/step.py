@@ -9,7 +9,23 @@ from __future__ import annotations
 
 import math
 import re
+from collections import Counter
 from dataclasses import dataclass, field
+
+# 本解析器不处理的几何：遇到就明确告警，而不是静默忽略。
+# 静默忽略比“报错”更危险：用户会以为判定过了。
+UNSUPPORTED = {
+    "B_SPLINE_SURFACE": "NURBS 曲面",
+    "B_SPLINE_SURFACE_WITH_KNOTS": "NURBS 曲面（带节点）",
+    "RATIONAL_B_SPLINE_SURFACE": "有理 NURBS 曲面",
+    "ADVANCED_FACE": "B-rep 高级面",
+    "TOROIDAL_SURFACE": "环面",
+    "CONICAL_SURFACE": "锥面",
+    "SPHERICAL_SURFACE": "球面",
+    "SURFACE_OF_REVOLUTION": "旋转面",
+    "SURFACE_OF_LINEAR_EXTRUSION": "拉伸面",
+    "SURFACE_OF_CYLINDRICAL_EXTENSION": "圆柱延伸面",
+}
 
 ENTITY = re.compile(r"#(\d+)\s*=\s*([A-Z0-9_]+)\s*\((.*?)\)\s*;", re.S)
 POINT = re.compile(r"CARTESIAN_POINT\s*\(\s*'[^']*'\s*,\s*\(([^)]*)\)\s*\)")
@@ -32,6 +48,7 @@ class StepModel:
     schema: str = "other"
     entity_kind: str = "single"
     diagnostics: list[tuple[str, str, str]] = field(default_factory=list)
+    unsupported: dict[str, int] = field(default_factory=dict)
 
     @property
     def bbox(self) -> tuple[float, float, float, float, float, float]:
@@ -108,6 +125,15 @@ def parse(text: str) -> StepModel:
 
     if len(ents) > 50 and any(k == "NEXT_ASSEMBLY_USAGE_OCCURRENCE" for k, _ in ents.values()):
         m.entity_kind = "assembly"
+
+    # 不支持的曲面/实体：统计后给出显式告警
+    kinds = Counter(kind for kind, _ in ents.values())
+    m.unsupported = {k: v for k, v in kinds.items() if k in UNSUPPORTED}
+    if m.unsupported:
+        detail = "、".join(f"{UNSUPPORTED[k]}×{v}" for k, v in sorted(m.unsupported.items()))
+        m.diagnostics.append((
+            "STEP-UNSUPPORTED-GEOMETRY", "warn",
+            f"含 {detail}：本解析器不做 NURBS/B-rep，R3 悬垂与 R4 可达判定可能不准"))
     if not m.points:
         m.diagnostics.append(("STEP-EMPTY", "fatal", "未找到任何几何点，文件可能损坏或非 STEP"))
     elif len(m.points) < 8:

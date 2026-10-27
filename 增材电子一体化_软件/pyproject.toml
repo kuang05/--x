@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aepcb"
-version = "1.6.0"
+version = "1.6.1"
 description = "增材电子一体化软件：结构 / 走线 / 切片 / 打印四域链路（含验收运行器）"
 readme = "README.md"
 requires-python = ">=3.10"

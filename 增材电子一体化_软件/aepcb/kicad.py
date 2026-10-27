@@ -146,6 +146,7 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
 
     components, pads = [], []
     warnings: list[dict] = []
+    pad_warnings: list[dict] = []
     for fp in _items(root, "footprint"):
         ref = None
         for prop in _items(fp, "property"):
@@ -184,6 +185,26 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
             ay = fy + px * sin_a + py * cos_a
             size = _first(pad, "size")
             w, h = _floats(size) if size else (1.0, 1.0)
+            # 焊盘形状：模型只收 rect/circle/roundrect/other，其余归 other 并告警
+            raw_shape = pad[3] if len(pad) > 3 else "rect"
+            shape_map = {"rect": "rect", "circle": "circle", "oval": "roundrect",
+                         "roundrect": "roundrect", "trapezoid": "other", "custom": "other"}
+            model_shape = shape_map.get(raw_shape, "other")
+            polygon: list[list[float]] = []
+            if raw_shape == "custom":
+                prim = _first(pad, "primitives")
+                for gp in (_items(prim, "gr_poly") if prim else []):
+                    pts_node = _first(gp, "pts")
+                    for xy in (_items(pts_node, "xy") if pts_node else []):
+                        qx, qy = _floats(xy)
+                        polygon.append([round(ax + qx, 4), round(ay + qy, 4)])
+                if polygon:
+                    xs = [q[0] for q in polygon]
+                    ys = [q[1] for q in polygon]
+                    w, h = max(xs) - min(xs), max(ys) - min(ys)
+                pad_warnings.append({"pad": f"{ref}.{pad[1]}", "shape": "custom",
+                                     "approx": "bounding_box",
+                                     "polygon_points": len(polygon)})
             net = _first(pad, "net")
             net_name = None
             if net and len(net) >= 3:
@@ -195,7 +216,9 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
                     net_name = None
             pads.append({"comp": ref, "no": str(pad[1]),
                          "x": round(ax, 4), "y": round(ay, 4),
-                         "w": w, "h": h, "net": net_name or f"N_{ref}_{pad[1]}"})
+                         "w": w, "h": h, "shape": model_shape,
+                         "polygon": polygon,
+                         "net": net_name or f"N_{ref}_{pad[1]}"})
 
     by_net: dict[str, list[list[tuple[float, float]]]] = {}
     for seg in _items(root, "segment"):
@@ -305,6 +328,7 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
         "zones": zones,
         "keepouts": [],
         "rotation_warnings": warnings,
+        "pad_warnings": pad_warnings,
     }
 
 

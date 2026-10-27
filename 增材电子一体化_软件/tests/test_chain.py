@@ -1111,6 +1111,50 @@ class ChainTest(unittest.TestCase):
         mid = min(pts, key=lambda p: abs(p[0] - 25.0))
         self.assertAlmostEqual(mid[0], 25.0, places=2)
 
+    def test_65_step_unsupported_warning(self):
+        """STEP 遇到 NURBS/B-rep 必须显式告警，不能静默忽略。"""
+        from aepcb import step
+        src = step.make_fixture_step(60, 40, 1.2)
+        src = src.replace(
+            "ENDSEC;\nEND-ISO",
+            "#900=B_SPLINE_SURFACE_WITH_KNOTS('',3,3,((0.,45.,90.)),.UNSPECIFIED.,"
+            ".F.,.F.,(4,4),(4,4),(0.,0.,1.),(0.,0.,1.),.UNSPECIFIED.);\n"
+            "#901=ADVANCED_FACE('',(#902),#903,.T.);\nENDSEC;\nEND-ISO")
+        m = step.parse(src)
+        codes = [c for c, _, _ in m.diagnostics]
+        self.assertIn("STEP-UNSUPPORTED-GEOMETRY", codes, "未支持的几何必须告警")
+        self.assertIn("B_SPLINE_SURFACE_WITH_KNOTS", m.unsupported)
+        self.assertIn("ADVANCED_FACE", m.unsupported)
+        # 普通文件不得误报
+        clean = step.parse(step.make_fixture_step(60, 40, 1.2))
+        self.assertEqual(clean.unsupported, {})
+        self.assertNotIn("STEP-UNSUPPORTED-GEOMETRY", [c for c, _, _ in clean.diagnostics])
+
+    def test_66_polygon_pad(self):
+        """多边形/自定义焊盘：映射到 other，按外接矩形近似并留告警。"""
+        from aepcb import kicad
+        text = '''(kicad_pcb (version 20240108)
+          (net 0 "") (net 2 "SIG")
+          (footprint "BGA" (layer "F.Cu") (at 10 10)
+            (fp_text reference "U1" (at 0 0))
+            (pad "A1" smd circle (at 0 0) (size 0.5 0.5) (layers "F.Cu") (net 2 "SIG"))
+            (pad "A2" smd oval (at 1 0) (size 0.8 0.5) (layers "F.Cu") (net 2 "SIG"))
+            (pad "A3" smd custom (at 2 0) (size 1 1) (layers "F.Cu") (net 2 "SIG")
+              (primitives (gr_poly (pts (xy -0.5 -0.5) (xy 0.5 -0.5)
+                (xy 0.5 0.5) (xy -0.5 0.5)))))))
+        '''
+        spec = kicad.parse(text)
+        shapes = {p["no"]: p["shape"] for p in spec["pads"]}
+        self.assertEqual(shapes["A1"], "circle")
+        self.assertEqual(shapes["A2"], "roundrect")
+        self.assertEqual(shapes["A3"], "other")
+        custom = [p for p in spec["pads"] if p["no"] == "A3"][0]
+        self.assertEqual(len(custom["polygon"]), 4, "多边形顶点应被保留")
+        self.assertAlmostEqual(custom["w"], 1.0, places=3)
+        self.assertAlmostEqual(custom["h"], 1.0, places=3)
+        self.assertTrue(any(w.get("shape") == "custom" for w in spec["pad_warnings"]),
+                        "变形焊盘必须告警，不能静默当矩形")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
