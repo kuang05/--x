@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 增材电子一体化_软件
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy scipy opencv-python-headless pillow scikit-learn
+
+      - name: 编译检查
+        run: python -m compileall -q aepcb tools tests
+
+      - name: 端到端用例
+        run: python -m unittest discover -s tests -v
+
+      - name: 验收 T01–T25（P0 失败即失败）
+        run: python -m aepcb.cli accept
+
+      - name: 依赖声明一致性
+        run: python tools/check_deps.py
+
+      - name: 环境自检
+        run: python -m aepcb.cli doctor
