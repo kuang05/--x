@@ -59,6 +59,8 @@ def executable_lines(path: pathlib.Path) -> set[int]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fast", action="store_true")
+    ap.add_argument("--min", type=float, default=70.0,
+                    help="最低总覆盖率（%%），低于此值退出码 1；设 0 关闭门禁")
     args = ap.parse_args()
 
     sys.settrace(tracer)
@@ -106,7 +108,11 @@ def main() -> int:
     for name, h, e, pct in rows[:5]:
         print(f"  低覆盖：{name:20} {pct:5.1f}%  ({h}/{e})")
     print(f"报告 -> {out}")
-    return 0 if not result.failures and not result.errors else 1
+    failed = bool(result.failures or result.errors)
+    below = args.min > 0 and overall < args.min
+    if below:
+        print(f"覆盖率 {overall:.1f}% 低于阈值 {args.min:.1f}%")
+    return 0 if not failed and not below else 1
 
 
 if __name__ == "__main__":

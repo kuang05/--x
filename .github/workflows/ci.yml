@@ -38,3 +38,6 @@ jobs:
 
       - name: 环境自检
         run: python -m aepcb.cli doctor
+
+      - name: 行覆盖率门禁（≥70%）
+        run: python tools/coverage_lite.py --min 70
