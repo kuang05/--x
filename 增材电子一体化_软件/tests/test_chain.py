@@ -1273,6 +1273,29 @@ class ChainTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             h._action("export")
 
+    def test_72_web_action_chain(self):
+        """web 的动作链：切片→导出→打印→智能体→报告，以及未知操作报错。"""
+        import tempfile
+        from pathlib import Path
+        from aepcb import web
+        pid, v0 = _new_project(self.db, "act")
+        sid, _ = board.import_step(self.db, pid, step.make_fixture_step(60, 40, 1.2), step)
+        board.import_board(self.db, pid, sid, t19a.t19a())
+        self.db.set_setting("ui.current_project", pid)
+        self.db.commit()
+        h = web.Handler.__new__(web.Handler)
+        h.db = self.db
+        with tempfile.TemporaryDirectory() as tmp:
+            h.workspace = Path(tmp)
+            self.assertIn("切片", h._action("slice"))
+            self.assertIn("G-code", h._action("export"))
+            self.assertIn("缺陷已归因", h._action("print"))
+            self.assertIn("→", h._action("agent"))
+            self.assertIn("报告已生成", h._action("report"))
+            self.assertTrue((Path(tmp) / "report.html").exists())
+        with self.assertRaises(ValueError):
+            h._action("不存在的操作")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
