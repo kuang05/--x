@@ -3,6 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号从 v1.5.0 起按「可运行基线」推进，每个 tag 对应一次全量回归通过。
 
+## [v1.7.9] — CLI 进程内覆盖
+
+### 新增
+- `test_75_cli_inprocess`：在进程内直接调用 `cmd_check / cmd_slice / cmd_export /
+  cmd_print / cmd_agent / cmd_sweep`，绕过 subprocess 的统计盲区。
+
+### 指标
+- 单测 75/75。
+- 行覆盖率 72.1% → **74.1%**（3983/5373）；`cli.py` 0% → **27.2%**。
+
 ## [v1.7.8] — POST 分支覆盖
 
 ### 新增

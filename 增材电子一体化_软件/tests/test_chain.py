@@ -1362,6 +1362,34 @@ class ChainTest(unittest.TestCase):
         out = post("undo-to", {"seq": 0})
         self.assertTrue(out.get("ok"))
 
+    def test_75_cli_inprocess(self):
+        """CLI 命令进程内调用：subprocess 不计入覆盖率，这里直接进函数。"""
+        import argparse
+        import contextlib
+        import io
+        from aepcb import cli
+        pid, v0 = _new_project(self.db, "cli2")
+        sid, _ = board.import_step(self.db, pid, step.make_fixture_step(60, 40, 1.2), step)
+        board.import_board(self.db, pid, sid, t19a.t19a())
+        self.db.set_setting("ui.current_project", pid)
+        self.db.commit()
+        ws = str(self.db.root)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_check(argparse.Namespace(workspace=ws))
+            cli.cmd_slice(argparse.Namespace(workspace=ws))
+            cli.cmd_export(argparse.Namespace(workspace=ws))
+            cli.cmd_print(argparse.Namespace(workspace=ws, fault_layer=2))
+            cli.cmd_agent(argparse.Namespace(workspace=ws, rounds=8, candidates=1))
+            cli.cmd_sweep(argparse.Namespace(workspace=ws, widths="0.5,0.6", net=""))
+        out = buf.getvalue()
+        self.assertIn("score", out)
+        self.assertIn("道次", out)
+        self.assertIn("G-code", out)
+        self.assertIn("缺陷", out)
+        self.assertIn("重放一致", out)
+        self.assertIn("扫描", out)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
