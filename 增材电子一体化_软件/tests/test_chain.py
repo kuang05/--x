@@ -1245,6 +1245,34 @@ class ChainTest(unittest.TestCase):
         mid = spec["outline"][4]
         self.assertGreater(mid[1], 0.0, "曲线中点应拱起，不能退化成直线")
 
+    def test_71_web_api_mutations(self):
+        """补 web.py 接口层：画线/改宽/改道/删线/整网改宽/动作命令。"""
+        from aepcb import web
+        pid, v0 = _new_project(self.db, "api")
+        sid, _ = board.import_step(self.db, pid, step.make_fixture_step(60, 40, 1.2), step)
+        imp = board.import_board(self.db, pid, sid, t19a.t19a())
+        self.db.set_setting("ui.current_project", pid)
+        self.db.commit()
+        h = web.Handler.__new__(web.Handler)
+        h.db = self.db
+        net = self.db.one("SELECT name FROM net WHERE circuit_id=? ORDER BY name LIMIT 1",
+                          (imp.circuit_id,))["name"]
+        msg = h._create_route({"net": net, "points": [[5, 5], [15, 5], [15, 9]],
+                               "width": 0.6, "layer": 0})
+        self.assertIn("已新增走线", msg)
+        rid = self.db.scalar("SELECT id FROM route WHERE circuit_id=? ORDER BY rowid DESC LIMIT 1",
+                             (imp.circuit_id,))
+        self.assertIn("宽度", h._set_width({"route_id": rid, "width_mm": 0.7}))
+        self.assertIn("改道", h._reshape({"route_id": rid,
+                                         "points": [[5, 5], [16, 5], [16, 9]]}))
+        self.assertIn("条走线", h._net_width({"net": net, "width_mm": 0.65}))
+        self.assertIn("已删除", h._delete_route({"route_id": rid}))
+        # 动作命令：重新检查
+        self.assertIn("分数", h._action("check"))
+        # 未先切片时导出应报错
+        with self.assertRaises(ValueError):
+            h._action("export")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
