@@ -49,9 +49,10 @@ class DB:
         self.c.execute("PRAGMA journal_mode=WAL")
         self.c.execute("PRAGMA synchronous=FULL")
         self.c.execute("PRAGMA busy_timeout=5000")
-        if fresh or not self._has_schema():
-            self.c.executescript(SCHEMA.read_text(encoding="utf-8"))
-            self.c.commit()
+        # DDL 全部 IF NOT EXISTS：每次打开都跑一遍，旧库会自动补建新增的表
+        # （只判断“有没有表”会让 59 表时代的旧库永远缺 copper_zone）
+        self.c.executescript(SCHEMA.read_text(encoding="utf-8"))
+        self.c.commit()
         self.root = self.path.parent
         # 内容寻址的 blob 不会变，可以安全缓存；否则每次评分都要把几何文件全读一遍
         self._blob_cache: dict[str, bytes] = {}

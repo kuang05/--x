@@ -151,7 +151,8 @@ def table_sql(t: Table, dialect: str, deferred: set[tuple[str, str]]) -> str:
     if t.note:
         lines.append(f"-- 建模说明：{t.note}")
     lines.append("-- " + "=" * 74)
-    lines.append(f"CREATE TABLE {t.name} (")
+    _ine = "IF NOT EXISTS " if dialect == "sqlite" else ""
+    lines.append(f"CREATE TABLE {_ine}{t.name} (")
     body: list[str] = []
     inline_pk = len(t.pk_cols) == 1
     for c in t.cols:
@@ -191,7 +192,8 @@ def index_sql(t: Table, dialect: str) -> list[str]:
                 cond = cond.replace(f"{col}=1", col).replace(f"{col} = 1", col)
             where = f" WHERE {cond}"
         out.append(f"-- {i.note or '索引'}")
-        out.append(f"CREATE {uniq}INDEX {name} ON {t.name} ({', '.join(i.cols)}){where};")
+        _ie = "IF NOT EXISTS " if dialect == "sqlite" else ""
+        out.append(f"CREATE {uniq}INDEX {_ie}{name} ON {t.name} ({', '.join(i.cols)}){where};")
     return out
 
 
@@ -374,6 +376,12 @@ SELECT r.project_id,
   FROM mrc_run r
   JOIN version v ON v.id = r.version_id;""")
     parts.append("")
+    # 触发器也做成幂等：旧库打开时要能重复执行 schema.sql
+    import re as _re
+    for _pat, _rep in ((r"^CREATE TRIGGER (?!IF NOT EXISTS )", "CREATE TRIGGER IF NOT EXISTS "),
+                       (r"^CREATE VIEW (?!IF NOT EXISTS )", "CREATE VIEW IF NOT EXISTS "),
+                       (r"^CREATE UNIQUE INDEX (?!IF NOT EXISTS )", "CREATE UNIQUE INDEX IF NOT EXISTS ")):
+        parts = [_re.sub(_pat, _rep, q, flags=_re.M) for q in parts]
     (OUT / "schema_sqlite.sql").write_text("\n".join(parts), encoding="utf-8")
 
     # ---------------- PostgreSQL ----------------
