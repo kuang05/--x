@@ -1390,6 +1390,36 @@ class ChainTest(unittest.TestCase):
         self.assertIn("重放一致", out)
         self.assertIn("扫描", out)
 
+    def test_76_cli_more_commands(self):
+        """CLI 其余命令进程内覆盖：init / new / import / evidence。"""
+        import argparse
+        import contextlib
+        import io
+        import json as _json
+        from pathlib import Path
+        import tempfile
+        from aepcb import cli
+        from aepcb import step as step_mod
+        # 用独立临时库：不与测试共享连接抢 DDL 锁（独立库才是真实 CLI 场景）
+        ws = Path(tempfile.mkdtemp())
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_init(argparse.Namespace(workspace=str(ws)))
+            cli.cmd_new(argparse.Namespace(workspace=str(ws), name="新板", w=50.0, h=30.0))
+            step_path = ws / "t.step"
+            step_path.write_text(step_mod.make_fixture_step(50, 30, 1.2), encoding="utf-8")
+            board_path = ws / "b.json"
+            board_path.write_text(_json.dumps(t19a.t19a()), encoding="utf-8")
+            cli.cmd_import(argparse.Namespace(workspace=str(ws), step=str(step_path),
+                                             board=str(board_path)))
+            cli.cmd_evidence(argparse.Namespace(workspace=str(ws), out=str(ws / "ev.md")))
+        out = buf.getvalue()
+        self.assertIn("已初始化", out)
+        self.assertIn("工程已创建", out)
+        self.assertIn("STEP", out)
+        self.assertIn("证据包", out)
+        self.assertTrue((ws / "ev.md").exists())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

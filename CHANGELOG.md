@@ -3,6 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号从 v1.5.0 起按「可运行基线」推进，每个 tag 对应一次全量回归通过。
 
+## [v1.7.10] — CLI 其余命令覆盖
+
+### 新增
+- `test_76_cli_more_commands`：进程内覆盖 `cmd_init / cmd_new / cmd_import / cmd_evidence`；
+  用独立临时库，避免与测试共享连接抢 DDL 锁（这也是 CLI 的真实使用场景）。
+
+### 指标
+- 单测 76/76。
+- 行覆盖率 74.1% → **74.9%**（4027/5373）；`cli.py` 27.2% → **39.5%**。
+
 ## [v1.7.9] — CLI 进程内覆盖
 
 ### 新增
