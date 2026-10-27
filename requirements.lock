@@ -1,0 +1,23 @@
+# 运行环境锁定（实测通过的组合）
+#
+# 生成环境：Python 3.12.13 / Linux x86_64（Intel Xeon 8255C，3 核）
+# 用途：复现「单测 69/69 + 验收 25/25」的基线；不是唯一可用组合。
+#
+# 注意 OpenCV 的包名：
+#   pyproject 声明 opencv-python-headless（无 GUI 依赖，适合服务器/演示机），
+#   本机实测环境装的是 opencv-python（含 GUI 库），二者都提供 import cv2。
+#   仅跑本项目的切片与几何计算时，headless 足够。
+
+numpy==1.26.4
+scipy==1.13.1
+opencv-python-headless==4.11.0.86
+pillow==11.3.0
+scikit-learn==1.6.1
+pyserial==3.5
+
+# 可选：PostgreSQL 实跑验证（tools/pg_verify.py）
+# pgserver>=0.1
+
+# 可选：STEP 完整 B-rep（需磁盘 ≥2 GB；未在本机验证）
+# cadquery-ocp==8.0.1.1.0
+# vtk==9.6.2
