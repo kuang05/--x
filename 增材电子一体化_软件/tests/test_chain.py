@@ -1208,6 +1208,27 @@ class ChainTest(unittest.TestCase):
         self.assertAlmostEqual(cx, 10.0, places=2)
         self.assertAlmostEqual(cy, 12.0, places=2)
 
+    def test_69_stl_import(self):
+        """STL：ASCII/二进制都能解析，法向由顶点算（不信文件里的 normal）。"""
+        from aepcb import stl
+        from fixtures import stl_fixture as fx
+        m = stl.parse(fx.make_ascii_stl(20, 10, 45))
+        self.assertEqual(m.schema, "STL")
+        self.assertTrue(m.faces, "应解析出法向")
+        slopes = sorted(f.slope_deg for f in m.faces)
+        self.assertTrue(any(40 <= s <= 50 for s in slopes),
+                        f"应含 45° 左右斜面，实际 {slopes}")
+        b = stl.parse(fx.make_binary_stl(20, 10))
+        self.assertTrue(b.faces)
+        self.assertAlmostEqual(b.size[0], 20, places=3)
+        self.assertAlmostEqual(b.size[1], 10, places=3)
+        # 二进制直接入库：import_step 必须接受 bytes
+        pid, v0 = _new_project(self.db, "stl")
+        sid, model = board.import_step(self.db, pid, fx.make_binary_stl(20, 10), stl)
+        self.assertAlmostEqual(model.size[0], 20, places=2)
+        n = self.db.scalar("SELECT COUNT(*) FROM structure WHERE id=?", (sid,), 0)
+        self.assertEqual(n, 1, "STL 应作为结构落库")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

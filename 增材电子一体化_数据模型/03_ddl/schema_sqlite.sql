@@ -368,9 +368,9 @@ CREATE TABLE structure (
     -- 源 STEP 文件指纹
     source_file_id TEXT REFERENCES external_file(id) ON DELETE SET NULL,
     -- STEP 协议
-    step_schema TEXT NOT NULL DEFAULT 'other' CHECK (step_schema IN ('AP203','AP214','AP242','other')),
+    step_schema TEXT NOT NULL DEFAULT 'other' CHECK (step_schema IN ('AP203','AP214','AP242','STL','other')),
     -- 实体形态
-    entity_kind TEXT NOT NULL DEFAULT 'single' CHECK (entity_kind IN ('single','assembly')),
+    entity_kind TEXT NOT NULL DEFAULT 'single' CHECK (entity_kind IN ('single','assembly','mesh')),
     -- 装配体是否已展平
     flattened INTEGER NOT NULL DEFAULT 0 CHECK (flattened IN (0,1)),
     -- 源文件单位

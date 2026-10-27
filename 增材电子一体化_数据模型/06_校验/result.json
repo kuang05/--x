@@ -132,7 +132,7 @@
       "id": "V-09",
       "name": "设计推进后切片自动置 stale 并记录时间（SLC-010）",
       "ok": true,
-      "detail": "status=stale, stale_since=2026-10-27T06:58:25.295Z",
+      "detail": "status=stale, stale_since=2026-10-27T07:40:54.975Z",
       "kind": "不变量"
     },
     {
