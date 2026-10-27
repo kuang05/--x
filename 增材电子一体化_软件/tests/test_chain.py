@@ -1296,6 +1296,28 @@ class ChainTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             h._action("不存在的操作")
 
+    def test_73_submit_slice_job(self):
+        """web 的切片任务提交：返回 job_id，后台任务最终 done。"""
+        import time
+        from aepcb import web
+        pid, v0 = _new_project(self.db, "job")
+        sid, _ = board.import_step(self.db, pid, step.make_fixture_step(60, 40, 1.2), step)
+        board.import_board(self.db, pid, sid, t19a.t19a())
+        self.db.set_setting("ui.current_project", pid)
+        self.db.commit()
+        h = web.Handler.__new__(web.Handler)
+        h.db = self.db
+        out = h._submit_slice({})
+        self.assertIn("job_id", out)
+        job = None
+        for _ in range(300):
+            job = h.jobs.get(out["job_id"])
+            if job.status != "running":
+                break
+            time.sleep(0.05)
+        self.assertEqual(job.status, "done", f"任务状态 {job.status}，错误 {job.error}")
+        self.assertEqual(job.snapshot()["progress"], 100)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
