@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aepcb"
-version = "1.6.3"
+version = "1.6.4"
 description = "增材电子一体化软件：结构 / 走线 / 切片 / 打印四域链路（含验收运行器）"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,8 @@ dependencies = [
 [project.optional-dependencies]
 serial = ["pyserial>=3.5"]
 pg = ["pgserver>=0.1"]
+# STEP 完整 B-rep（可选）：装不上时自动退回子集解析 + 告警
+occ = ["cadquery-ocp>=8.0"]
 
 [project.scripts]
 aepcb = "aepcb.cli:main"

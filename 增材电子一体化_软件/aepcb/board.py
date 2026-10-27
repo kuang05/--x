@@ -25,7 +25,9 @@ class ImportResult:
 
 
 def import_step(db: DB, project_id: str, text: str, step_module) -> tuple[str, object]:
-    model = step_module.parse(text)
+    # 优先走增强路径（子集 + 可选 OCC）；老模块只有 parse 时也能跑
+    parser = getattr(step_module, "parse_enhanced", None) or step_module.parse
+    model = parser(text)
     data = text.encode("utf-8")
     h = db.put_blob(data, "step")
     ext = db.ins("external_file", project_id=project_id, role="step", path="inputs/board.step",

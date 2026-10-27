@@ -19,6 +19,7 @@ ALIASES = {
     "scikit-learn": "sklearn",
     "pyserial": "serial",
     "pillow": "PIL",
+    "cadquery-ocp": "OCP",
 }
 
 

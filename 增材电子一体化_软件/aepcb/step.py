@@ -146,6 +146,45 @@ def parse(text: str) -> StepModel:
     return m
 
 
+def parse_enhanced(text: str) -> StepModel:
+    """子集解析 + 可选 OCC 增强。
+
+    只在「遇到不支持几何」且 OCC 可用时才三角化：普通文件走快路径，
+    不会因为装了 OCC 就变慢；OCC 不可用时退回子集结果并明确告知。
+    """
+    m = parse(text)
+    if not m.unsupported:
+        return m
+    from . import occ_step
+    if not occ_step.available():
+        m.diagnostics.append(("STEP-OCC-UNAVAILABLE", "info",
+                              "未安装 cadquery-ocp，保持子集解析（判定可能不准）"))
+        return m
+    import os
+    import tempfile
+    fd, path = tempfile.mkstemp(suffix=".step")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        occ = occ_step.triangulate(path)
+    except Exception as exc:                                  # noqa: BLE001
+        m.diagnostics.append(("STEP-OCC-FAILED", "warn", f"OCC 三角化失败：{exc}"))
+        return m
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    if not occ or not occ["buckets"]:
+        return m
+    m.faces = [Face(b["normal"], b["slope_deg"]) for b in occ["buckets"]]
+    m.diagnostics.append((
+        "STEP-OCC-MESH", "info",
+        f"OCC 三角化 {occ['triangles']} 个三角面，法向桶 {len(occ['buckets'])} 个，"
+        f"最大悬垂 {occ['max_slope_deg']:.1f}°"))
+    return m
+
+
 def make_fixture_step(w_mm: float, h_mm: float, thickness_mm: float,
                       overhang_deg: float = 0.0, with_cylinder: bool = False) -> str:
     """生成一个最小可解析的 AP214 文本（板 + 可选 60° 侧壁），用于演示与验收。"""
