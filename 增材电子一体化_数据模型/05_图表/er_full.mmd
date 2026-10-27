@@ -307,6 +307,16 @@ erDiagram
     text reason "来源说明"
     time created_at "创建时间"
   }
+  copper_zone {
+    text id PK "铺铜区 ID"
+    text circuit_id FK "所属电路"
+    text net_id FK "所属网络"
+    int layer_no "层号"
+    hash geometry_blob_hash FK "轮廓多边形（CAS）"
+    int priority "优先级"
+    bool filled "已填充"
+    time created_at "创建时间"
+  }
   via {
     text id PK "过孔 ID"
     text circuit_id FK "所属电路"
@@ -827,6 +837,9 @@ erDiagram
   pad ||--o{ jumper : "pad_b_id"
   circuit ||--o{ keepout : "circuit_id"
   blob ||--o{ keepout : "geometry_blob_hash"
+  circuit ||--o{ copper_zone : "circuit_id"
+  net ||--o{ copper_zone : "net_id"
+  blob ||--o{ copper_zone : "geometry_blob_hash"
   circuit ||--o{ via : "circuit_id"
   net ||--o{ via : "net_id"
   circuit ||--o{ layout_candidate : "circuit_id"

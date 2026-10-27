@@ -114,6 +114,17 @@ def import_board(db: DB, project_id: str, structure_id: str, spec: dict) -> Impo
                applies_layer=str(k.get("layer", "all")), reason=k.get("reason", "设计禁布"),
                created_at=now())
 
+    # 铺铜：KiCad zone → copper_zone（异网重叠即短路，见 R2）
+    for z in spec.get("zones", []):
+        net_name = z.get("net")
+        if not net_name or net_name not in net_ids:
+            continue
+        db.ins("copper_zone", circuit_id=cid, net_id=net_ids[net_name],
+               layer_no=int(z.get("layer", 0)),
+               geometry_blob_hash=db.put_blob(json.dumps(z["points"]).encode(), "other"),
+               priority=int(z.get("priority", 0)), filled=int(z.get("filled", 1)),
+               created_at=now())
+
     for v in spec.get("vias", []):
         if not v.get("net"):
             continue

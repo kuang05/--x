@@ -135,6 +135,32 @@ def list_rule_versions(db: DB) -> list[dict]:
         "ORDER BY created_at DESC, rowid DESC")]
 
 
+def _point_in_poly(pt, poly) -> bool:
+    """射线法：点是否在多边形内（铺铜重叠判定）。"""
+    x, y = pt
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            xin = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+            if x < xin:
+                inside = not inside
+    return inside
+
+
+def _poly_gap(pts, poly) -> float:
+    """折线到多边形的最小间隙；任一端点在内则视为 0（重叠）。"""
+    if any(_point_in_poly(p, poly) for p in pts):
+        return 0.0
+    best = float("inf")
+    n = len(poly)
+    for i in range(n):
+        best = min(best, min_gap(pts, [poly[i], poly[(i + 1) % n]]))
+    return best
+
+
 def run(db: DB, project_id: str, version_id: str, rule_version_id: str | None = None,
         tool_geometry_id: str | None = None, engine_version: str = "1.0.0") -> dict:
     base = ensure_baseline(db)
@@ -190,6 +216,30 @@ def run(db: DB, project_id: str, version_id: str, rule_version_id: str | None = 
                   {"action": "shift_route", "route_id": b["id"],
                    "delta_mm": round(channel - edge + 0.2, 3), "axis": "y"},
                   layer=a["layer_no"])
+
+    # R2 补充：铺铜（copper_zone）。异网重叠即短路，距离不足同 R2
+    for z in db.q("SELECT * FROM copper_zone WHERE circuit_id=?", (circuit["id"],)):
+        zpts = [tuple(p) for p in json.loads(db.get_blob(z["geometry_blob_hash"]))]
+        if len(zpts) < 3:
+            continue
+        for r in routes:
+            if r["layer_no"] != z["layer_no"] or r["net_id"] == z["net_id"]:
+                continue
+            gap = _poly_gap(pts[r["id"]], zpts)
+            edge = gap - r["width_mm"] / 2
+            names = f"{net_name.get(r['net_id'], '?')}/{net_name.get(z['net_id'], '?')}"
+            if edge <= 1e-9:
+                issue("R2", "route", r["id"], 0.0, spacing, "mm",
+                      f"{names} 与铺铜重叠（短路）",
+                      {"action": "shift_route", "route_id": r["id"],
+                       "delta_mm": round(spacing + 0.2, 3), "axis": "y"},
+                      layer=r["layer_no"])
+            elif edge < spacing - 1e-9:
+                issue("R2", "route", r["id"], round(edge, 3), spacing, "mm",
+                      f"{names} 到铺铜间距 {edge:.2f} mm 小于 {spacing:.2f} mm",
+                      {"action": "shift_route", "route_id": r["id"],
+                       "delta_mm": round(spacing - edge + 0.2, 3), "axis": "y"},
+                      layer=r["layer_no"])
 
     # R3 悬垂
     max_slope = th["R3"]["max_slope_deg"]

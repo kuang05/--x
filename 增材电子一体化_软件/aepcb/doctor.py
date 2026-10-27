@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 REQUIRED = {"python", "numpy", "scipy", "PIL", "cv2", "sklearn", "sqlite", "schema", "workspace"}
-EXPECTED_TABLES = 59
+EXPECTED_TABLES = 60
 
 
 def _version(mod) -> str:

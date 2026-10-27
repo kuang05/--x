@@ -184,6 +184,25 @@ TABLES = [
       idx=[Index(["circuit_id"], note="按电路取禁布区")],
       note="自动布线的失败原因要能指到具体遮挡对象：禁布区、焊盘或已布走线（CIR-006）。"),
 
+    # ------------------------------------------------------------------ copper_zone
+    T("copper_zone", "铺铜区", "circuit",
+      "整片铜箔（地/电源平面）：同网络可连，异网络贴得太近即短路。",
+      ["CIR-006", "MRC-002"],
+      [
+          ID("铺铜区 ID"),
+          C("circuit_id", "text", "所属电路", nn=True, fk="circuit.id", on_delete="CASCADE"),
+          C("net_id", "text", "所属网络", nn=True, fk="net.id", on_delete="CASCADE"),
+          C("layer_no", "int", "层号", nn=True, check="layer_no>=0 AND layer_no<=31"),
+          C("geometry_blob_hash", "hash", "轮廓多边形（CAS）", nn=True, fk="blob.hash"),
+          C("priority", "int", "优先级", nn=True, default="0",
+            note="KiCad zone 的 priority，叠层顺序用"),
+          C("filled", "bool", "已填充", nn=True, default="1",
+            note="KiCad filled_polygon：0 表示只有轮廓、未铺铜"),
+          CREATED(),
+      ],
+      idx=[Index(["circuit_id", "layer_no"], note="按层取铺铜")],
+      note="铺铜与异网走线重叠即短路；间隔不足归 R2。轮廓按多边形点序列存 blob。"),
+
     # ------------------------------------------------------------------ via
     T("via", "过孔", "circuit",
       "层间互连：把两层走线在同一点接通。首版只建电学连接，不建孔壁金属化工艺模型。",

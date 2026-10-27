@@ -107,6 +107,30 @@ def _layer_name(no: int) -> str:
     return f"In{int(no)}.Cu"
 
 
+def _arc_points(start, mid, end, steps: int = 24) -> list[tuple[float, float]]:
+    """三点圆弧 → 折线。KiCad 用 start/mid/end 描述弧，不存圆心。
+
+    弧线离散成折线后再算间距：把弧当直线会把实际弯曲长度和间距都算错。
+    """
+    (x1, y1), (x2, y2), (x3, y3) = start, mid, end
+    d = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
+    if abs(d) < 1e-9:                      # 三点共线：退化成直线
+        return [start, end]
+    ux = ((x1 * x1 + y1 * y1) * (y2 - y3) + (x2 * x2 + y2 * y2) * (y3 - y1)
+          + (x3 * x3 + y3 * y3) * (y1 - y2)) / d
+    uy = ((x1 * x1 + y1 * y1) * (x3 - x2) + (x2 * x2 + y2 * y2) * (x1 - x3)
+          + (x3 * x3 + y3 * y3) * (x2 - x1)) / d
+    r = math.hypot(x1 - ux, y1 - uy)
+    a0, am, a2 = (math.atan2(y1 - uy, x1 - ux), math.atan2(y2 - uy, x2 - ux),
+                  math.atan2(y3 - uy, x3 - ux))
+    tau = 2 * math.pi
+    ccw_span = (a2 - a0) % tau
+    ccw_mid = (am - a0) % tau
+    span = ccw_span if ccw_mid <= ccw_span else -(tau - ccw_span)
+    return [(ux + r * math.cos(a0 + span * i / steps),
+             uy + r * math.sin(a0 + span * i / steps)) for i in range(steps + 1)]
+
+
 def parse(text: str, board_w: float | None = None, board_h: float | None = None) -> dict:
     tree = _parse(_tokenize(text))
     root = next((n for n in tree if isinstance(n, list) and n and n[0] == "kicad_pcb"), tree)
@@ -201,6 +225,50 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
                 routes.append({"net": key, "layer": layer_no, "width": width,
                                "points": [[round(x, 3), round(y, 3)] for x, y in poly]})
 
+    # 弧形走线：离散成折线后并入同一网络的路径
+    for arc in _items(root, "arc"):
+        s, m, e = _first(arc, "start"), _first(arc, "mid"), _first(arc, "end")
+        if not (s and m and e):
+            continue
+        w_node = _first(arc, "width")
+        width = _floats(w_node, 1)[0] if w_node else 0.25
+        lay = _first(arc, "layer")
+        layer_no = _layer_no(lay[1]) if lay and len(lay) > 1 else 0
+        net = _first(arc, "net")
+        name = nets.get(int(net[1])) if net and len(net) > 1 else None
+        pts = _arc_points(_floats(s), _floats(m), _floats(e))
+        routes.append({"net": name or "N_UNKNOWN", "layer": layer_no, "width": width,
+                       "points": [[round(x, 3), round(y, 3)] for x, y in pts],
+                       "arc": True})
+
+    # 铺铜：整片多边形铜箔，异网重叠即短路
+    zones: list[dict] = []
+    for z in _items(root, "zone"):
+        net = _first(z, "net")
+        net_name = None
+        if net and len(net) > 1:
+            try:
+                net_name = nets.get(int(net[1]))
+            except (ValueError, TypeError):
+                net_name = None
+        lay = _first(z, "layer")
+        layer_no = _layer_no(lay[1]) if lay and len(lay) > 1 else 0
+        prio = _first(z, "priority")
+        priority = int(_floats(prio, 1)[0]) if prio else 0
+        pts_node = _first(_first(z, "polygon") or [], "pts")
+        pts: list[list[float]] = []
+        if pts_node:
+            for xy in _items(pts_node, "xy"):
+                px, py = _floats(xy)
+                pts.append([round(px, 3), round(py, 3)])
+        if len(pts) >= 3 and net_name:
+            zones.append({"net": net_name, "layer": layer_no, "priority": priority,
+                          "filled": 1 if _first(z, "filled_polygon") else 0,
+                          "points": pts})
+        elif pts and not net_name:
+            warnings.append({"zone": "无网络", "points": len(pts),
+                            "reason": "没有 net，无法判定短路"})
+
     vias = []
     for v in _items(root, "via"):
         at = _first(v, "at")
@@ -234,6 +302,7 @@ def parse(text: str, board_w: float | None = None, board_h: float | None = None)
         "nets": [{"name": n, "class": "default"} for n in net_names],
         "routes": routes,
         "vias": [v for v in vias if v["net"]],
+        "zones": zones,
         "keepouts": [],
         "rotation_warnings": warnings,
     }

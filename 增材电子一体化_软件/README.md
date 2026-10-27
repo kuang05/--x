@@ -11,7 +11,7 @@ python3 -m aepcb.cli demo            # 全链演示（终端）
 python3 -m aepcb.cli serve           # 浏览器界面 http://127.0.0.1:8765
 python3 -m aepcb.cli accept          # T01–T25 验收，P0 失败时退出码 1
 python3 -m aepcb.cli kicad board.kicad_pcb   # 导入真实 KiCad 板文件
-python3 -m unittest discover -s tests -v     # 61 个端到端用例
+python3 -m unittest discover -s tests -v     # 64 个端到端用例
 python3 -m aepcb.cli doctor          # 环境自检（依赖/数据库/可选组件）
 python3 tools/bench.py               # 切片性能基准
 python3 tools/pg_verify.py           # PostgreSQL 实跑验证（需 pgserver）
@@ -49,21 +49,21 @@ python3 -m aepcb.cli sweep            # 宽度扫描：代理粗排 + 规则确�
 | Agent | **R1/R2/R7/R4/R5 五类可修**；62 → 97 分，4 轮收敛，重放分数完全一致 |
 | 撤销/重做 | 改宽/改道/**删除**都可撤销，version 行数全程不变（PRJ-005） |
 | 规则版本 | CLI `rules --set` 与界面「新建并重评」都可建版本；旧分数不被覆盖（MRC-011） |
-| 过孔 | `via` 入模型（59 表/658 字段）；跨层无过孔判断路，加孔后 pass；KiCad 往返保留 |
+| 过孔 | `via` 入模型（60 表/666 字段）；跨层无过孔判断路，加孔后 pass；KiCad 往返保留 |
 | KiCad 分层 | `F.Cu=0 / In{n}.Cu=n / B.Cu=15`，盲埋孔层对原样保留（往返测 layer 0/1/15） |
 | KiCad 旋转 | 封装旋转补偿到焊盘绝对坐标；非 90° 倍数归一化并记 `rotation_warnings` |
 | 工程包 | 整库导出 zip（行数据 + blob + 清单哈希）→ 空库导入后行数与 MRC 分数一致 |
 | 单工程工程包 | 按 `project_id` 串联裁剪（规则/工具/材料/blob 闭包），导入后库内只剩该工程 |
 | 包合并导入 | `merge=True` 时全量 id 重映射；material/全局工艺配置去重，blob 按哈希忽略重复；合并后分数一致 |
-| 自检 | `doctor` 11/11 通过（依赖含 PIL/cv2/sklearn、59 表建库、工作目录、可选 pgserver/pyserial） |
+| 自检 | `doctor` 11/11 通过（依赖含 PIL/cv2/sklearn、60 表建库、工作目录、可选 pgserver/pyserial） |
 | 验收 | **25/25 通过（T01–T25），P0 零失败 → PASS** |
-| 单测 | **61/61 通过** |
+| 单测 | **64/64 通过** |
 | 界面 | **五区布局**（顶栏/四域/画布/侧栏/底栏）、2D/3D、**3D 旋转缩放平移适配**、**剖切与两点测距**、图层开关、画线/拖拽改道、**器件移动/旋转/翻面/锁定**、整网与批量改宽、**建议宽度**、操作栈回退、规则版本重评、**快捷键**、**切片进度与取消** |
 | UI 性能 | 选择响应 **17.7 ms**（≤50）、改宽 **3.2 ms**（≤120）、三维投影 **1.12 ms/帧**（20 万顶点，**仅计算不含渲染**） |
 | 证据包 | `evidence` 导出 Markdown+JSON：规则与阈值、评分历史、切片/G-code 双哈希、连通性、计划步骤、T01–T24；**`accept` 跑完自动产出** |
 | 性能 | 切片 60×40 **0.4–0.7 s**、200×200 **2.4–4.8 s**（同机多次波动；冷缓存时为 1.03 / 2.91 s） |
 | MRC 评分 | 缓存后 **3.0 ms**（原 27.8 ms）；候选改动后热读 **7 ms** |
-| PostgreSQL | **实跑 PASS**：59 表 / 21 触发器 / 169 索引 + 5 条行为探针 |
+| PostgreSQL | **实跑 PASS**：60 表 / 21 触发器 / 171 索引 + 5 条行为探针 |
 | 演示模式 | `pitch` 一键：清库 → T01–T24 全链验收 → `report.html` + `evidence.md`（约 50 s） |
 | 参赛材料 | `../参赛材料/`：赛事研究、申报书、演示与答辩要点 |
 | 代理模型 | 360 样本、分组留出 ρ **0.952**；**宽度扫描场景**：5 个候选穷举 35.4 ms → 粗排+确认 **12.8 ms（2.77×）**，选择与规则最优一致；Agent 路径为负收益（89 vs 174 ms）故默认关闭 |
@@ -75,7 +75,7 @@ python3 -m aepcb.cli sweep            # 宽度扫描：代理粗排 + 规则确�
 
 ```
 增材电子一体化_软件/
-├── schema.sql            59 张表（由数据模型交付物生成）
+├── schema.sql            60 张表（由数据模型交付物生成）
 ├── aepcb/
 │   ├── store.py          连接/PRAGMA/UUIDv7/仓储/CAS（多线程安全）
 │   ├── geometry.py       折线距离、栅格化、形态学、蛇形填充
@@ -101,7 +101,7 @@ python3 -m aepcb.cli sweep            # 宽度扫描：代理粗排 + 规则确�
 ├── Makefile              make demo/test/accept/bench/pg/ci
 ├── pyproject.toml        可安装（console script: aepcb）
 ├── fixtures/t19a.py      T19-A 固定验收板
-├── tests/test_chain.py   61 个端到端用例
+├── tests/test_chain.py   64 个端到端用例
 ├── tools/bench.py        切片性能基准
 ├── tools/pg_verify.py    PostgreSQL 实跑验证
 ├── tools/ci.sh           测试 + 验收 + 基准一条命令

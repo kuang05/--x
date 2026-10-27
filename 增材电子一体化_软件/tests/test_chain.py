@@ -1067,6 +1067,50 @@ class ChainTest(unittest.TestCase):
         self.assertIn("Python：", md)
         self.assertIn("SQLite：", md)
 
+    def test_63_copper_zone_short(self):
+        """KiCad zone：铺铜入库，异网重叠必须报 R2 短路。"""
+        from aepcb import kicad, mrc
+        text = '''(kicad_pcb (version 20240108)
+          (net 0 "") (net 1 "GND") (net 2 "SIG")
+          (footprint "R" (layer "F.Cu") (at 10 10)
+            (fp_text reference "R1" (at 0 0))
+            (pad "1" smd rect (at -0.8 0) (size 0.8 0.9) (layers "F.Cu") (net 2 "SIG"))
+            (pad "2" smd rect (at 0.8 0) (size 0.8 0.9) (layers "F.Cu") (net 1 "GND")))
+          (segment (start 10 10) (end 20 10) (width 0.25) (layer "F.Cu") (net 2))
+          (zone (net 1) (layer "F.Cu") (priority 1)
+            (polygon (pts (xy 15 8) (xy 30 8) (xy 30 20) (xy 15 20)))))
+        '''
+        spec = kicad.parse(text)
+        self.assertEqual(len(spec["zones"]), 1, "zone 应被解析")
+        self.assertEqual(len(spec["zones"][0]["points"]), 4)
+        pid, v0 = _new_project(self.db, "zone")
+        sid, _ = board.import_step(self.db, pid, step.make_fixture_step(60, 40, 1.2), step)
+        imp = board.import_board(self.db, pid, sid, spec)
+        n = self.db.scalar("SELECT COUNT(*) FROM copper_zone WHERE circuit_id=?",
+                           (imp.circuit_id,), 0)
+        self.assertEqual(n, 1, "铺铜应落库")
+        run = mrc.run(self.db, pid, v0)
+        hits = [i for i in run["issues"] if "铺铜" in i["message"]]
+        self.assertTrue(hits, "异网走线穿过铺铜必须报短路")
+        self.assertIn("重叠", hits[0]["message"])
+
+    def test_64_arc_route_discretized(self):
+        """弧形走线：三点弧必须离散成折线，否则长度与间距都算错。"""
+        from aepcb import kicad
+        text = '''(kicad_pcb (version 20240108)
+          (net 0 "") (net 2 "SIG")
+          (arc (start 20 10) (mid 25 15) (end 20 20) (width 0.25) (layer "F.Cu") (net 2)))
+        '''
+        spec = kicad.parse(text)
+        arcs = [r for r in spec["routes"] if r.get("arc")]
+        self.assertEqual(len(arcs), 1)
+        pts = arcs[0]["points"]
+        self.assertGreaterEqual(len(pts), 8, "弧线应被离散成多点")
+        self.assertEqual(pts[0], [20.0, 10.0])
+        self.assertEqual(pts[-1], [20.0, 20.0])
+        mid = min(pts, key=lambda p: abs(p[0] - 25.0))
+        self.assertAlmostEqual(mid[0], 25.0, places=2)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

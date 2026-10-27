@@ -805,6 +805,31 @@ CREATE TABLE keepout (
 );
 
 -- ==========================================================================
+-- 表 copper_zone｜铺铜区
+-- 整片铜箔（地/电源平面）：同网络可连，异网络贴得太近即短路。
+-- 依据需求：CIR-006, MRC-002
+-- 建模说明：铺铜与异网走线重叠即短路；间隔不足归 R2。轮廓按多边形点序列存 blob。
+-- ==========================================================================
+CREATE TABLE copper_zone (
+    -- 铺铜区 ID
+    id text PRIMARY KEY NOT NULL CHECK (length(id)=36),
+    -- 所属电路
+    circuit_id text NOT NULL REFERENCES circuit(id) ON DELETE CASCADE,
+    -- 所属网络
+    net_id text NOT NULL REFERENCES net(id) ON DELETE CASCADE,
+    -- 层号
+    layer_no integer NOT NULL CHECK (layer_no>=0 AND layer_no<=31),
+    -- 轮廓多边形（CAS）
+    geometry_blob_hash char(64) NOT NULL CHECK (length(geometry_blob_hash)=64) REFERENCES blob(hash) ON DELETE RESTRICT,
+    -- 优先级（KiCad zone 的 priority，叠层顺序用）
+    priority integer NOT NULL DEFAULT 0,
+    -- 已填充（KiCad filled_polygon：0 表示只有轮廓、未铺铜）
+    filled boolean NOT NULL DEFAULT true,
+    -- 创建时间
+    created_at timestamptz NOT NULL
+);
+
+-- ==========================================================================
 -- 表 via｜过孔
 -- 层间互连：把两层走线在同一点接通。首版只建电学连接，不建孔壁金属化工艺模型。
 -- 依据需求：CIR-004, CIR-008, SLC-004, MRC-002
@@ -2025,6 +2050,9 @@ CREATE INDEX idx_jumper_net_id_status ON jumper (net_id, status);
 
 -- 按电路取禁布区
 CREATE INDEX idx_keepout_circuit_id ON keepout (circuit_id);
+
+-- 按层取铺铜
+CREATE INDEX idx_copper_zone_circuit_id_layer_no ON copper_zone (circuit_id, layer_no);
 
 -- 按电路/网络取过孔
 CREATE INDEX idx_via_circuit_id_net_id ON via (circuit_id, net_id);

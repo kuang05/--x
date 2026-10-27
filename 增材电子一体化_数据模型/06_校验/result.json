@@ -4,16 +4,16 @@
   "results": [
     {
       "id": "S-01",
-      "name": "表数量 = 59",
+      "name": "表数量 = 60",
       "ok": true,
-      "detail": "实际 59 张",
+      "detail": "实际 60 张",
       "kind": "结构"
     },
     {
       "id": "S-02",
       "name": "索引数量 ≥ 100",
       "ok": true,
-      "detail": "实际 110 个",
+      "detail": "实际 111 个",
       "kind": "结构"
     },
     {
@@ -69,7 +69,7 @@
       "id": "T-03",
       "name": "每张表都标注了依据需求",
       "ok": true,
-      "detail": "59 张表全部有 req 标注",
+      "detail": "60 张表全部有 req 标注",
       "kind": "追溯"
     },
     {
@@ -132,7 +132,7 @@
       "id": "V-09",
       "name": "设计推进后切片自动置 stale 并记录时间（SLC-010）",
       "ok": true,
-      "detail": "status=stale, stale_since=2026-10-27T00:23:01.623Z",
+      "detail": "status=stale, stale_since=2026-10-27T06:58:25.295Z",
       "kind": "不变量"
     },
     {

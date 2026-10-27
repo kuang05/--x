@@ -73,6 +73,9 @@ erDiagram
   keepout {
     text id PK
   }
+  copper_zone {
+    text id PK
+  }
   via {
     text id PK
   }
@@ -228,6 +231,9 @@ erDiagram
   pad ||--o{ jumper : "pad_b_id"
   circuit ||--o{ keepout : "circuit_id"
   blob ||--o{ keepout : "geometry_blob_hash"
+  circuit ||--o{ copper_zone : "circuit_id"
+  net ||--o{ copper_zone : "net_id"
+  blob ||--o{ copper_zone : "geometry_blob_hash"
   circuit ||--o{ via : "circuit_id"
   net ||--o{ via : "net_id"
   circuit ||--o{ layout_candidate : "circuit_id"
