@@ -1420,6 +1420,32 @@ class ChainTest(unittest.TestCase):
         self.assertIn("证据包", out)
         self.assertTrue((ws / "ev.md").exists())
 
+    def test_77_cli_package_rules(self):
+        """CLI 的规则版本与工程包导出/导入（独立临时库）。"""
+        import argparse
+        import contextlib
+        import io
+        import tempfile
+        from pathlib import Path
+        from aepcb import cli
+        ws = Path(tempfile.mkdtemp())
+        pkg = ws / "p.aepkg"
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli.cmd_init(argparse.Namespace(workspace=str(ws)))
+            cli.cmd_rules(argparse.Namespace(workspace=str(ws),
+                                            set=["R2.min_spacing_mm=0.55"],
+                                            label="v-cli", note="测试"))
+            cli.cmd_package(argparse.Namespace(workspace=str(ws), out=str(pkg)))
+            # 导入到另一个库：同一库导入会主键冲突（工程包用于迁移/恢复）
+            ws2 = Path(tempfile.mkdtemp())
+            cli.cmd_restore(argparse.Namespace(workspace=str(ws2), file=str(pkg)))
+        out = buf.getvalue()
+        self.assertIn("规则版本", out)
+        self.assertIn("工程包", out)
+        self.assertIn("导入完成", out)
+        self.assertTrue(pkg.exists(), "工程包应落盘")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
